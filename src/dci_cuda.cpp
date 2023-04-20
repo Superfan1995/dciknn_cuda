@@ -51,22 +51,23 @@ static void py_tensor_free(PyObject *py_tensor_wrapper) {
     cudaFree(py_tensor);
 }
 
-py::handle py_dci_new(const int dim, const int num_comp_indices,
+py::handle py_dci_new(const int num_heads, const int dim, const int num_comp_indices,
     const int num_simp_indices, const int deviceId) {
     const at::cuda::OptionalCUDAGuard device_guard(deviceId);
     py_dci *py_dci_inst;
     cudaMallocManaged((void **) &py_dci_inst, sizeof(py_dci));
 
     // initialize DCI instance
-    dci_init(&(py_dci_inst->dci_inst), dim, num_comp_indices, num_simp_indices, deviceId);
+    dci_init(&(py_dci_inst->dci_inst), num_heads, dim, num_comp_indices, num_simp_indices, deviceId);
 
     // Returns new reference
     PyObject *py_dci_inst_wrapper = PyCapsule_New(py_dci_inst, "py_dci_inst", py_dci_free_wrap);
     return py_dci_inst_wrapper;
 }
 
-void py_dci_add(py::handle py_dci_inst_wrapper, const int dim, const int num_points,
-    torch::Tensor py_data, const int block_size, const int thread_size) {
+void py_dci_add(py::handle py_dci_inst_wrapper, const int num_heads, const int dim, 
+    const int num_points, torch::Tensor py_data, const int block_size, 
+    const int thread_size) {
     const at::cuda::OptionalCUDAGuard device_guard(device_of(py_data));
 
     PyObject *py_obj = py_dci_inst_wrapper.ptr();
@@ -74,16 +75,16 @@ void py_dci_add(py::handle py_dci_inst_wrapper, const int dim, const int num_poi
     float* data = (float *)py_data.data_ptr();
 
     // add data to DCI instance
-    dci_add(&(py_dci_inst->dci_inst), dim, num_points, data, block_size, thread_size);
+    dci_add(&(py_dci_inst->dci_inst), num_heads, dim, num_points, data, block_size, thread_size);
 
     PyObject *py_tensor_wrapper = PyCapsule_New(&py_data, "py_tensor", py_tensor_free);
     py_dci_inst->py_array = py_tensor_wrapper;
     Py_INCREF(py_tensor_wrapper);
 }
 
-torch::Tensor py_dci_query(py::handle py_dci_inst_wrapper, const int dim, const int num_queries,
-    torch::Tensor py_query, const int num_neighbours, const bool blind, const int num_outer_iterations,
-    const int max_num_candidates, const int block_size,
+torch::Tensor py_dci_query(py::handle py_dci_inst_wrapper, const int num_heads, const int dim, 
+    const int num_queries, torch::Tensor py_query, const int num_neighbours, const bool blind, 
+    const int num_outer_iterations, const int max_num_candidates, const int block_size,
     const int thread_size) {
     const at::cuda::OptionalCUDAGuard device_guard(device_of(py_query));
 
@@ -101,7 +102,7 @@ torch::Tensor py_dci_query(py::handle py_dci_inst_wrapper, const int dim, const 
     cudaMalloc((void **) &(final_distances), sizeof(float) * output_size);
 
     // query using DCI
-    dci_query(&(py_dci_inst->dci_inst), dim, num_queries, query, num_neighbours,
+    dci_query(&(py_dci_inst->dci_inst), num_heads, dim, num_queries, query, num_neighbours,
       query_config, final_outputs, final_distances, block_size, thread_size);
 
     auto options = torch::TensorOptions().device(torch::kCUDA);
@@ -117,14 +118,14 @@ torch::Tensor py_dci_query(py::handle py_dci_inst_wrapper, const int dim, const 
     return final_result;
 }
 
-std::vector<torch::Tensor> py_dci_multi_query(std::vector<py::handle> py_dci_inst_wrapper, const int dim, const int num_queries,
-    std::vector<torch::Tensor> py_query, const int num_neighbours, const bool blind, const int num_outer_iterations,
-    const int max_num_candidates, const int block_size,
+std::vector<torch::Tensor> py_dci_multi_query(std::vector<py::handle> py_dci_inst_wrapper, const int num_heads, 
+    const int dim, const int num_queries, std::vector<torch::Tensor> py_query, const int num_neighbours, 
+    const bool blind, const int num_outer_iterations, const int max_num_candidates, const int block_size,
     const int thread_size) {
     std::vector<torch::Tensor> results;
     std::vector<std::future<torch::Tensor>> calcs;
     for (unsigned int i = 0; i < py_query.size(); i++) {
-        calcs.push_back(std::async(py_dci_query, py_dci_inst_wrapper[i], dim, num_queries,
+        calcs.push_back(std::async(py_dci_query, py_dci_inst_wrapper[i], num_heads, dim, num_queries,
             py_query[i], num_neighbours, blind, num_outer_iterations, max_num_candidates, block_size, thread_size));
     }
     for (unsigned int i = 0; i < py_query.size(); i++) {

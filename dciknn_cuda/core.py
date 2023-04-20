@@ -24,12 +24,13 @@ from math import sqrt
 
 class DCI(object):
     
-    def __init__(self, dim, num_comp_indices=2, num_simp_indices=7, bs=100, ts=10, device=0):
+    def __init__(self, num_heads, dim, num_comp_indices=2, num_simp_indices=7, bs=100, ts=10, device=0):
         
         if not torch.cuda.is_available():
             raise RuntimeError("DCI CUDA version requires GPU access, please check CUDA driver.")
 
         self._dim = dim
+        self._num_heads = num_heads
         self._num_comp_indices = num_comp_indices
         self._num_simp_indices = num_simp_indices
         self._dci_inst = _dci_new(dim, num_comp_indices, num_simp_indices, device)
@@ -71,7 +72,7 @@ class DCI(object):
             raise RuntimeError("DCI class does not support insertion of more than one tensor. Must combine all tensors into one tensor before inserting")
         self._check_data(data)
         self.num_points = data.shape[0]
-        _dci_add(self._dci_inst, self._dim, self.num_points, data.flatten(), self._block_size, self._thread_size)
+        _dci_add(self._dci_inst, self._num_heads, self._dim, self.num_points, data.flatten(), self._block_size, self._thread_size)
         self._array = data
     
     # query is num_queries x dim, returns num_queries x num_neighbours
@@ -87,7 +88,7 @@ class DCI(object):
         max_num_candidates = 10 * num_neighbours
         # num_queries x num_neighbours
 
-        _query_result = _dci_query(self._dci_inst, self._dim, _query.shape[0], _query.flatten(), num_neighbours, blind, num_outer_iterations, max_num_candidates, self._block_size, self._thread_size)
+        _query_result = _dci_query(self._dci_inst, self._num_heads, self._dim, _query.shape[0], _query.flatten(), num_neighbours, blind, num_outer_iterations, max_num_candidates, self._block_size, self._thread_size)
         half = _query_result.shape[0] // 2
         return _query_result[:half].reshape(_query.shape[0], -1), _query_result[half:].reshape(_query.shape[0], -1)
     
@@ -108,13 +109,13 @@ class DCI(object):
 
 
 class MDCI(object):
-    def __init__(self, dim, num_comp_indices=2, num_simp_indices=7, bs=100, ts=10, devices=[0]):
+    def __init__(self, num_heads, dim, num_comp_indices=2, num_simp_indices=7, bs=100, ts=10, devices=[0]):
         # if len(devices) < 2:
         #     raise RuntimeError("You should specify at least two GPU for multi-GPU DCI to work")
         
         self.devices = devices
         self.num_devices = len(devices)
-        self.dcis = [DCI(dim, num_comp_indices, num_simp_indices, bs, ts, dev) for dev in devices]
+        self.dcis = [DCI(num_heads, dim, num_comp_indices, num_simp_indices, bs, ts, dev) for dev in devices]
         self.data_per_device = 0
         
     

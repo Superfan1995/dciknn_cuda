@@ -49,16 +49,27 @@ static inline float abs_d(float x) {
 }
 
 /* Normalize the input projection vectors. Vectors are normalized along each row. */
-__global__ void normalize_proj_vecs(float* const proj_vec, const int dim,
+__global__ void normalize_proj_vecs(float* const proj_vec, const int num_heads, const int dim,
 		const int num_indices) {
+
+	// http://users.wfu.edu/choss/CUDA/docs/Lecture%205.pdf
+	// blockDim.x, are built-in variables that return the “block dimension” 
+	// (i.e., the number of threads in a block in the x-axis).
+	// The full global thread ID in x dimension can be computed by
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
 	/* Note: Assumes num_blocks = num_threads */
-	int chunk_size = (num_indices + blockDim.x * blockDim.x - 1)
+	// each chunk representing a contiguous sequence of blocks of 4d array elements each (?)
+	int chunk_size = (num_indices * num_heads + blockDim.x * blockDim.x - 1)
 			/ (blockDim.x * blockDim.x);
+
+	// vec_index: index of the projection vector
 	int vec_index;
 	for (int j = 0; j < chunk_size; ++j) {
+		// read each chunk
 		vec_index = i * chunk_size + j;
-		if (vec_index < num_indices) {
+
+		// total number of index = num_indices * num_head
+		if (vec_index < num_indices * num_heads) {
 			float sq_norm = 0.0;
 			for (int k = 0; k < dim; ++k) {
 				sq_norm += proj_vec[vec_index * dim + k]
@@ -74,15 +85,15 @@ __global__ void normalize_proj_vecs(float* const proj_vec, const int dim,
 
 /* Create matrix with proj_vec dim-dimensional normalized gaussian vectors.
  vectors are normalized along each row */
-void dci_gen_proj_vec(float* const proj_vec, const int dim,
+void dci_gen_proj_vec(float* const proj_vec, const int num_heads, const int dim,
 		const int num_indices) {
 	/* Generate the random indices */
-	rng_parallel_device(proj_vec, dim * num_indices, GAUSS_RAND);
+	rng_parallel_device(proj_vec, num_heads * dim * num_indices, GAUSS_RAND);
 
 	/* Normalize */
 	int block_size = 32;
 	int thread_size = 32;
-	normalize_proj_vecs<<<block_size, thread_size>>>(proj_vec, dim,
+	normalize_proj_vecs<<<block_size, thread_size>>>(proj_vec, num_heads, dim,
 			num_indices);
 
 	/* Synchronize the threads */
@@ -90,17 +101,19 @@ void dci_gen_proj_vec(float* const proj_vec, const int dim,
 }
 
 /* Initializes the master DCI data structure.  */
-void dci_init(dci* const dci_inst, const int dim, const int num_comp_indices,
+void dci_init(dci* const dci_inst, const int num_heads, const int dim, const int num_comp_indices,
 		const int num_simp_indices, const int devId) {
 	int num_indices = num_comp_indices * num_simp_indices;
 
+	dci_inst->num_heads = num_heads;
 	dci_inst->dim = dim;
 	dci_inst->num_comp_indices = num_comp_indices;
 	dci_inst->num_simp_indices = num_simp_indices;
 
+	// has multiple attention head
 	cudaMallocManaged((void **) &dci_inst->proj_vec,
-			sizeof(float) * dim * num_indices);
-	dci_gen_proj_vec(dci_inst->proj_vec, dim, num_indices);
+			sizeof(float) * num_heads * dim * num_indices);
+	dci_gen_proj_vec(dci_inst->proj_vec, num_heads, dim, num_indices);
 
 	/* Variables that initialize to default values */
 	dci_inst->num_points = 0;
@@ -110,29 +123,43 @@ void dci_init(dci* const dci_inst, const int dim, const int num_comp_indices,
 }
 
 /* Sort indices */
-__global__ void sort_indices(dci* const dci_inst, const int num_indices,
+__global__ void sort_indices(dci* const dci_inst, const int num_heads, const int num_indices,
 		const int num_points, const int points_per_block) {
-	int chunk_size = (num_indices + blockDim.x - 1) / blockDim.x;
+	int chunk_size = (num_heads * num_indices + blockDim.x - 1) / blockDim.x;
 	int idx;
 	int num_points_in_block = min(
-			(int) (dci_inst->num_points - blockIdx.x * points_per_block),
+			(int) (dci_inst->num_points * num_heads - blockIdx.x * points_per_block),
 			points_per_block);
+
+	// Need to do this in loop of multi-head attention
+	// each attention heads need to sort independently
+	// how can I do that?
+	// sort is for each index, rather than indices, so should be fine
+	//for (int i = 0; i < num_heads; i++) {}
+
 	for (int j = 0; j < chunk_size; j++) {
 		idx = threadIdx.x * chunk_size + j;
-		if (idx < num_indices) {
+		if (idx < num_indices * num_heads) {
+
+			int head = (int) (idx / num_indices);
+			int num_elems_to_next_head = (head + 1) * num_indices * dci_inst->num_points - idx * (dci_inst->num_points);
+
 			mix_sort(
 					&(dci_inst->indices[idx * dci_inst->num_points
 							+ points_per_block * blockIdx.x]),
-					num_points_in_block);
+					min(
+						num_points_in_block,
+						num_elems_to_next_head
+					));
 		}
 	}
 }
 
 /* Copy data in proj_vec to indices */
-__global__ void copy_to_indices(dci* const dci_inst, float* const data_proj,
-		const int num_indices, const int num_points) {
+__global__ void copy_to_indices(dci* const dci_inst, const int num_heads, 
+		float* const data_proj, const int num_indices, const int num_points) {
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
-	int n = num_indices * num_points;
+	int n = num_heads * num_indices * num_points;
 	int chunk_size = (n + blockDim.x * gridDim.x - 1)
 			/ (blockDim.x * gridDim.x);
 	int idx;
@@ -141,43 +168,93 @@ __global__ void copy_to_indices(dci* const dci_inst, float* const data_proj,
 		if (idx < n) {
 			dci_inst->indices[idx].key = data_proj[idx];
 			dci_inst->indices[idx].value = idx % num_points;
+			//dci_inst->indices[idx].value = idx % (num_heads * num_points);
 		}
 	}
 }
 
+/* Heads: This is currently not working*/
 /* Add data to the master DCI data structure.  */
-void dci_add(dci* const dci_inst, const int dim, const int num_points,
+void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int num_points,
 		float* const data, const int block_size, const int thread_size) {
 	int num_indices = dci_inst->num_comp_indices * dci_inst->num_simp_indices;
 	float *data_proj;
 	cudaMallocManaged((void **) &data_proj,
-			sizeof(float) * num_points * num_indices);
+			sizeof(float) * num_heads * num_points * num_indices);
 
+	assert(num_heads == dci_inst->num_heads)
 	assert(dim == dci_inst->dim);
 	assert(dci_inst->num_points == 0);
 
 	cudaMallocManaged((void **) &dci_inst->data,
-			sizeof(float) * num_points * dim);
+			sizeof(float) * num_heads * num_points * dim);
 	dci_inst->data = data;
 	cudaMallocManaged((void **) &dci_inst->indices,
-			sizeof(idx_elem) * num_points * num_indices);
+			sizeof(idx_elem) * num_heads * num_points * num_indices);
 
 	dci_inst->num_points = num_points;
 
-	matmul_device(CUBLAS_OP_N, CUBLAS_OP_T, num_indices, num_points,
-			dci_inst->dim, dci_inst->proj_vec, dci_inst->data, data_proj,
-			dci_inst->devID);
+	//for (int i = 0; i < num_head; i++) {
+	//	matmul_device(CUBLAS_OP_N, CUBLAS_OP_T, num_indices, num_points,
+	//		dci_inst->dim, dci_inst->proj_vec, dci_inst->data, data_proj,
+	//		dci_inst->devID);
+	//	cudaDeviceSynchronize();
+	//}
+
+	//matmul_device(const cublasOperation_t op_A, const cublasOperation_t op_B,
+    //	const int M, const int N, const int K, const float* const A, const float* 
+	//	const B, float* const C, int &devID)
+
+    // setup execution parameters
+    //dim3 threads(block_size, block_size);
+    //dim3 grid(N / threads.x, M / threads.y);
+
+    // cublasSgemm(handle, op_B, op_A, N, M, K, &alpha, B, ldb, A, lda, &beta, C, N);
+
+	// CUBLAS_OP_N -> op_A (operator A)
+	// CUBLAS_OP_T -> op_B (operator B)
+	// num_indices -> M (?, number of index (complex + simple), used in grid function)
+	// num_points -> N (?, number of data point (?), used in grid function)
+	// dci_inst->dim -> K (dimension of each data point)
+	// dci_inst->proj_vec -> A (input matrix A)
+	// dci_inst->data -> B (input matrix B)
+	// data_proj -> C (result matrix)
+	// dci_inst->devID -? &devID
+
+	// conclude: 	we still need to calculate each attention head seperately, matmul together will result
+	// 				calculate useless result
+
+    // Destroy the handle
+    //cublasDestroy(handle);
+	
+	for (int i = 0; i < num_head; i++) {
+		data_id = i * sizeof(float) * num_points * dim;
+		proj_vec_id = i * sizeof(float) * dim * num_indices;
+		data_proj_id = i * sizeof(float) * num_points * num_indices;
+
+		matmul_device(
+			CUBLAS_OP_N, 
+			CUBLAS_OP_T, 
+			num_indices, 
+			num_points,
+			dci_inst->dim,
+			dci_inst->proj_vec[proj_vec_id], 
+			dci_inst->data[data_id], 
+			data_proj[data_proj_id], 
+			dci_inst->devID
+		);
+	}
 	cudaDeviceSynchronize();
 
 	/* Add to indices */
-	copy_to_indices	<<<block_size, thread_size>>>(dci_inst, data_proj, num_indices, num_points);
+	copy_to_indices	<<<block_size, thread_size>>>(dci_inst, num_heads, data_proj, num_indices, num_points);
 
 	/* Synchronize the threads */
 	cudaDeviceSynchronize();
 
-	int points_per_block = (dci_inst->num_points + block_size - 1) / block_size;
+	int points_per_block = (dci_inst->num_points * num_heads + block_size - 1) / block_size;
 	/* Sort the indices */
-	sort_indices<<<block_size, thread_size>>>(dci_inst, num_indices, num_points,
+	sort_indices<<<block_size, thread_size>>>(dci_inst, num_heads, num_indices, num_points,
 			points_per_block);
 
 	/* Synchronize the threads */
@@ -298,54 +375,71 @@ static inline int dci_search_index(const idx_elem* const idx, const float key,
 
 /* Search indices */
 __device__ void search_index(const dci* const dci_inst,
-		const float* const query_proj, const int num_indices,
+		const float* const query_proj, const int num_indices, const int num_heads,
 		int* const left_pos, int* const right_pos, const int points_per_block) {
-	int total = num_indices;
+
+	int total = num_indices * num_heads;
 	int chunk_size = (total + blockDim.x - 1) / blockDim.x;
+
 	int idx;
 	for (int j = 0; j < chunk_size; j++) {
 		idx = threadIdx.x * chunk_size + j;
 		if (idx < total) {
+			
+			// each head has num_indices indices
+			// first, get current head id
+			int head = (int) (idx / num_indices);
+			//int next_indices = (head + 1) * num_indices;
+
 			left_pos[idx] = dci_search_index(
 					&(dci_inst->indices[idx * (dci_inst->num_points)
-							+ blockIdx.x * points_per_block]),
+							+ blockIdx.x * points_per_block]), // the id of the index
 					query_proj[idx],
-					min(dci_inst->num_points - blockIdx.x * points_per_block,
-							points_per_block)) - blockDim.x + 1;
+					min(dci_inst->num_points * num_heads - blockIdx.x * points_per_block,
+							points_per_block,
+							(head + 1) * num_indices * dci_inst->num_points - idx * (dci_inst->num_points)
+							)) - blockDim.x + 1;
 			right_pos[idx] = left_pos[idx] + blockDim.x;
 		}
 	}
 }
 
 __device__ void init_index_priority(const dci* const dci_inst,
-		const float* const query_proj, const int num_indices,
+		const float* const query_proj, const int num_indices, const int num_heads,
 		int* const left_pos, int* const right_pos, float* const index_priority,
 		int* const cur_pos, const int points_per_block) {
-	int total = num_indices;
+	int total = num_indices * num_heads;
 	int chunk_size = (total + blockDim.x - 1) / blockDim.x;
 	int idx;
 	int num_points_in_block = min(
-			(int) (dci_inst->num_points - blockIdx.x * points_per_block),
+			(int) (dci_inst->num_points * num_heads - blockIdx.x * points_per_block),
 			points_per_block);
 	for (int j = 0; j < chunk_size; j++) {
 		idx = threadIdx.x * chunk_size + j;
-		if (idx < total && num_points_in_block > 0) {
+
+		int head = (int) (idx / num_indices);
+		int num_points_in_block_head = min(
+			(head + 1) * num_indices * dci_inst->num_points - idx * (dci_inst->num_points),
+			num_points_in_block
+		);
+
+		if (idx < total && num_points_in_block_head > 0) {
 			cur_pos[idx] = dci_next_closest_proj(
 					&(dci_inst->indices[idx * (dci_inst->num_points)
 							+ blockIdx.x * points_per_block]),
 					&(left_pos[idx]), &(right_pos[idx]), query_proj[idx],
-					num_points_in_block);
+					num_points_in_block_head);
 			int position;
 			if ((cur_pos[idx] < 0) && (cur_pos[idx] > -blockDim.x)) {
 				position = 0;
-			} else if ((cur_pos[idx] < (num_points_in_block + blockDim.x - 1))
-					&& (cur_pos[idx] >= num_points_in_block)) {
-				position = num_points_in_block - 1;
+			} else if ((cur_pos[idx] < (num_points_in_block_head + blockDim.x - 1))
+					&& (cur_pos[idx] >= num_points_in_block_head)) {
+				position = num_points_in_block_head - 1;
 			} else {
 				position = cur_pos[idx];
 			}
 			assert(position >= 0); // There should be at least one point in the index
-			assert(position < num_points_in_block);
+			assert(position < num_points_in_block_head);
 			index_priority[idx] = abs_d(
 					dci_inst->indices[position + idx * (dci_inst->num_points)
 							+ blockIdx.x * points_per_block].key
@@ -356,7 +450,7 @@ __device__ void init_index_priority(const dci* const dci_inst,
 
 __global__ void init_counts(const dci* const dci_inst, int* counts) {
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
-	int total = dci_inst->num_comp_indices * dci_inst->num_points;
+	int total = dci_inst->num_comp_indices * dci_inst->num_points * dci_inst->num_heads;
 	int chunk_size = (total + blockDim.x * gridDim.x - 1)
 			/ (blockDim.x * gridDim.x);
 	for (int j = 0; j < chunk_size; j++) {
@@ -370,11 +464,11 @@ __global__ void init_counts(const dci* const dci_inst, int* counts) {
 __global__ void init_candidate_dists(const dci* const dci_inst,
 		float* candidate_dists) {
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
-	int total = dci_inst->num_points;
+	int total = dci_inst->num_points * dci_inst->num_heads;
 	int chunk_size = (total + blockDim.x * gridDim.x - 1)
 			/ (blockDim.x * gridDim.x);
 	for (int j = 0; j < chunk_size; j++) {
-		int l = i * chunk_size + j;
+		int l = i * chunk_size + j; 
 		if (l < total) {
 			candidate_dists[l] = -2.0;
 		}
@@ -384,7 +478,7 @@ __global__ void init_candidate_dists(const dci* const dci_inst,
 __global__ void init_candidate_indices(const dci* const dci_inst,
 		int* candidate_indices) {
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
-	int total = dci_inst->num_points;
+	int total = dci_inst->num_points * dci_inst->num_heads;
 	int chunk_size = (total + blockDim.x * gridDim.x - 1)
 			/ (blockDim.x * gridDim.x);
 	for (int j = 0; j < chunk_size; j++) {
@@ -411,6 +505,7 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 	__shared__ bool could_break; // Bug fix: resolve infinite loop if thread 0 exits first
 	float last_top_candidate_dist = -1.0; // The distance of the k^th closest candidate found so far
 	int num_candidates = 0, last_top_candidate = -1;
+	int curr_head = 0;
 
 	// init variables
 	if (threadIdx.x == 0) {
@@ -421,9 +516,9 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 	int max_possible_num_candidates = min(query_config.max_num_candidates,
 			query_config.num_outer_iterations);
 
-	int points_per_block = (dci_inst->num_points + gridDim.x - 1) / gridDim.x;
+	int points_per_block = (dci_inst->num_points * dci_init->num_heads + gridDim.x - 1) / gridDim.x;
 	int num_points_in_block = min(
-			(int) (dci_inst->num_points - blockIdx.x * points_per_block),
+			(int) (dci_inst->num_points * dci_init->num_heads - blockIdx.x * points_per_block),
 			points_per_block);
 
 	if (num_points_in_block > 0) {
@@ -434,28 +529,40 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 		__shared__ float* index_priority;
 		// init variables
 		if (threadIdx.x == 0) {
-			left_pos = new int[num_indices];
-			right_pos = new int[num_indices];
-			cur_pos = new int[num_indices];
-			index_priority = new float[num_indices];
+			left_pos = new int[num_indices * dci_init->num_heads];
+			right_pos = new int[num_indices * dci_init->num_heads];
+			cur_pos = new int[num_indices * dci_init->num_heads];
+			index_priority = new float[num_indices * dci_init->num_heads];
 		}
 		__syncthreads();
 
 		/* Search index */
-		search_index(dci_inst, query_proj, num_indices, left_pos, right_pos,
-				points_per_block);
+		search_index(dci_inst, query_proj, num_indices, dci_inst->num_heads, 
+				left_pos, right_pos, points_per_block);
 
 		/* Synchronize the threads */
 		__syncthreads();
 
 		/* Populate the closest indices */
-		init_index_priority(dci_inst, query_proj, num_indices, left_pos, right_pos,
-				index_priority, cur_pos, points_per_block);
+		init_index_priority(dci_inst, query_proj, num_indices, dci_inst->num_heads, 
+				left_pos, right_pos, index_priority, cur_pos, points_per_block);
 
 		/* Synchronize the threads */
 		__syncthreads();
 
+		// loop for a single block
 		while (k < num_points_in_block * dci_inst->num_simp_indices * blockDim.x) {
+
+			int head = (int) (k / (dci_inst->num_points * dci_inst->num_simp_indices));
+			int head_position = dci_inst->num_comp_indices * head;
+
+			if (head != curr_head) {
+				curr_head = head;
+				last_top_candidate_dist = -1.0
+				num_candidates = 0;
+				last_top_candidate = -1;
+				curr_head = 0;
+			}
 
 			if (threadIdx.x == 0) {
 				m = 0;
@@ -468,10 +575,10 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 					top_index_priority = DBL_MAX;
 					top_h = -1;
 					for (h = 0; h < dci_inst->num_simp_indices; h++) {
-						if (index_priority[h + m * dci_inst->num_simp_indices]
+						if (index_priority[h + (m + head_position) * dci_inst->num_simp_indices]
 								< top_index_priority) {
 							top_index_priority = index_priority[h
-									+ m * dci_inst->num_simp_indices];
+									+ (m + head_position) * dci_inst->num_simp_indices];
 							top_h = h;
 						}
 					}
@@ -480,7 +587,7 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 				__syncthreads();
 				if (top_h >= 0) {
 					if (threadIdx.x == 0) {
-						i = top_h + m * dci_inst->num_simp_indices;
+						i = top_h + (m + head_position) * dci_inst->num_simp_indices;
 						position = cur_pos[i];
 					}
 					__syncthreads();
@@ -490,17 +597,17 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 						int cur_point = dci_inst->indices[cur_index
 								+ i * (dci_inst->num_points)
 								+ blockIdx.x * points_per_block].value;
-						counts[cur_point + m * (dci_inst->num_points)]++;
-						if (counts[cur_point + m * (dci_inst->num_points)]
+						counts[cur_point + (m + head_position) * (dci_inst->num_points)]++;
+						if (counts[cur_point + (m + head_position) * (dci_inst->num_points)]
 								== dci_inst->num_simp_indices) {
 							// add offset to candidate_dists
 							if (candidate_dists[cur_point] == -2.0) {
 								if (query_config.blind) {
 									candidate_dists[cur_point] = -1.0;
 									// lock
-									all_candidates[num_candidates
-											+ blockIdx.x
-													* max_possible_num_candidates] =
+									all_candidates[num_candidates +
+											+ blockIdx.x * max_possible_num_candidates
+											+ max_possible_num_candidates * block_size * head] =
 											cur_point;
 									num_candidates++;
 								} else {
@@ -511,14 +618,17 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 											dci_inst->dim);
 									candidate_dists[cur_point] = cur_dist;
 									if (num_candidates < num_neighbours) {
-										d_top_candidates_dist[blockIdx.x
-												* num_neighbours
+										d_top_candidates_dist[ blockIdx.x * num_neighbours
 												+ threadIdx.x * num_neighbours
-												+ num_candidates] = cur_dist;
+												+ num_candidates
+												+ num_neighbours * block_size * thread_size * head] = 
+												cur_dist;
 										d_top_candidates_index[blockIdx.x
 												* num_neighbours
 												+ threadIdx.x * num_neighbours
-												+ num_candidates] = cur_point;
+												+ num_candidates
+												+ num_neighbours * block_size * thread_size * head] = 
+												cur_point;
 										if (cur_dist > last_top_candidate_dist) {
 											last_top_candidate_dist = cur_dist;
 											last_top_candidate = num_candidates;
@@ -527,11 +637,15 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 										d_top_candidates_dist[blockIdx.x
 												* num_neighbours
 												+ threadIdx.x * num_neighbours
-												+ last_top_candidate] = cur_dist;
+												+ last_top_candidate
+												+ num_neighbours * block_size * thread_size * head] =
+												cur_dist;
 										d_top_candidates_index[blockIdx.x
 												* num_neighbours
 												+ threadIdx.x * num_neighbours
-												+ last_top_candidate] = cur_point;
+												+ last_top_candidate
+												+ num_neighbours * block_size * thread_size * head] = 
+												cur_point;
 										last_top_candidate_dist = -1.0;
 										// Assuming num_neighbours less than the min(blockDim) = 32
 										// no need to run on gpu
@@ -539,14 +653,16 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 											if (d_top_candidates_dist[blockIdx.x
 													* num_neighbours
 													+ threadIdx.x * num_neighbours
-													+ j]
+													+ j
+													+ num_neighbours * block_size * thread_size * head]
 													> last_top_candidate_dist) {
 												last_top_candidate_dist =
 														d_top_candidates_dist[blockIdx.x
 																* num_neighbours
 																+ threadIdx.x
 																		* num_neighbours
-																+ j];
+																+ j
+																+ num_neighbours * block_size * thread_size * head];
 												last_top_candidate = j;
 											}
 										}
@@ -564,21 +680,24 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 					__syncthreads();
 					// use the first thread to update
 					if (threadIdx.x == 0) {
+						int num_points_in_block_head = min(num_points_in_block,
+							(head + 1) * dci_inst->num_points - i * (dci_inst->num_points));
+
 						cur_pos[i] = dci_next_closest_proj(
 								&(dci_inst->indices[i * (dci_inst->num_points)
 										+ blockIdx.x * points_per_block]),
 								&(left_pos[i]), &(right_pos[i]), query_proj[i],
-								num_points_in_block);
+								num_points_in_block_head);
 						if ((cur_pos[i] < 0) && (cur_pos[i] > -blockDim.x)) {
 							position = 0;
 						} else if ((cur_pos[i]
-								< (num_points_in_block + blockDim.x - 1))
-								&& (cur_pos[i] >= num_points_in_block)) {
-							position = num_points_in_block - 1;
+								< (num_points_in_block_head + blockDim.x - 1))
+								&& (cur_pos[i] >= num_points_in_block_head)) {
+							position = num_points_in_block_head - 1;
 						} else {
 							position = cur_pos[i];
 						}
-						if (position >= 0 && position < num_points_in_block) {
+						if (position >= 0 && position < num_points_in_block_head) {
 							index_priority[i] = abs_d(
 									dci_inst->indices[position
 											+ i * (dci_inst->num_points)
@@ -595,11 +714,12 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 				}
 				__syncthreads();
 			}
+			// no change here
 			if (threadIdx.x == 0) {
 				if (num_candidates >= num_neighbours) {
 					if (k + 1
 							>= query_config.num_outer_iterations
-									* dci_inst->num_simp_indices
+									* dci_inst->num_simp_indices * dci_inst->num_heads
 							|| num_candidates >= query_config.max_num_candidates) {
 						could_break = true;
 						break;
@@ -626,9 +746,12 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 }
 
 __global__ void mix_sort_kernel(idx_elem* const d_top_candidates,
-		const int total) {
-	if (threadIdx.x == 0 && blockIdx.x == 0) {
-		mix_sort(d_top_candidates, total);
+		const int total, const int num_heads) {
+	if (threadIdx.x == 0 && blockIdx.x == 0) 
+	{
+		for (int i = 0; i < num_heads; i++) {
+			mix_sort(d_top_candidates[total * i], total);
+		}
 	}
 }
 
@@ -691,22 +814,44 @@ __global__ void update_top(const dci* const dci_inst,
 void get_top_candidates(int* const nearest_neighbours,
 		float* const nearest_neighbour_dists,
 		float* const d_top_candidates_dist, int* const d_top_candidates_index,
-		const int num_neighbours, const int total) {
-	thrust::sort_by_key(thrust::device, d_top_candidates_dist,
-			d_top_candidates_dist + total, d_top_candidates_index);
-	cudaMemcpy(nearest_neighbour_dists, d_top_candidates_dist,
-			sizeof(float) * num_neighbours, cudaMemcpyDeviceToDevice);
-	cudaMemcpy(nearest_neighbours, d_top_candidates_index,
-			sizeof(int) * num_neighbours, cudaMemcpyDeviceToDevice);
+		const int num_neighbours, const int total, const int num_heads) {
+
+	for (int i = 0; i < num_heads; i ++) {
+		thrust::sort_by_key(thrust::device, 
+				d_top_candidates_dist + i * total,
+				d_top_candidates_dist + total + i * total, 
+				d_top_candidates_index + i * total);
+		cudaMemcpy(
+				nearest_neighbour_dists + i * total, 
+				d_top_candidates_dist + i * total,
+				sizeof(float) * num_neighbours, 
+				cudaMemcpyDeviceToDevice);
+		cudaMemcpy(
+				nearest_neighbours + i * total, 
+				d_top_candidates_index + i * total,
+				sizeof(int) * num_neighbours, 
+				cudaMemcpyDeviceToDevice);
+	}
 }
 
 __global__ void init_dist(float* const candidate_map, const int total,
-		const float value) {
-	int idx, i = blockDim.x * blockIdx.x + threadIdx.x;
+		const float value, const int head) {
+	int idx, i = blockDim.x * blockIdx.x + threadIdx.x; 
 	int chunk_size = (total + blockDim.x * gridDim.x - 1)
 			/ (blockDim.x * gridDim.x);
+
+	//int head = (blockDim.x * blockIdx.x + threadIdx.x) / num_elems_in_head;
+	
 	int j;
 	// initialize the counters
+	for (j = 0; j < chunk_size; j++) {
+
+		idx = i * chunk_size + j;
+		if (idx < total) {
+			candidate_map[idx] = value;
+		}
+	}
+
 	for (j = 0; j < chunk_size; j++) {
 		idx = i * chunk_size + j;
 		if (idx < total) {
@@ -731,6 +876,7 @@ __global__ void init_candidates(idx_elem* const candidate_map, const int total,
 	}
 }
 
+// comput number candidate, counting maximum number of candidate
 __global__ void get_blind_candidate_count(idx_elem* const candidate_map,
 		int* const d_all_candidates, const int total) {
 	int idx, i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -753,28 +899,28 @@ __global__ void get_blind_candidate_count(idx_elem* const candidate_map,
  */
 void get_top_blind_candidates(int* const nearest_neighbours,
 		int* const d_all_candidates, const int max_possible_num_candidates,
-		const int total) {
+		const int total, const int num_heads) {
 	int i;
 	idx_elem* candidate_map;
 	cudaMallocManaged((void **) (&candidate_map),
-			sizeof(idx_elem) * total);
+			sizeof(idx_elem) * total * num_heads);
 	int block_size = 1024;
 	int thread_size = 32;
-	init_candidates<<<block_size, thread_size>>>(candidate_map, total, 0);
+	init_candidates<<<block_size, thread_size>>>(candidate_map, total * num_heads, 0);
 	// synch all blocks
 	cudaDeviceSynchronize();
-	get_blind_candidate_count<<<block_size, thread_size>>>(candidate_map, d_all_candidates, total);
+	get_blind_candidate_count<<<block_size, thread_size>>>(candidate_map, d_all_candidates, total * num_heads);
 	// synch all blocks
 	cudaDeviceSynchronize();
-	mix_sort_kernel<<<1, 1>>>(candidate_map, total);
-	for (i = 0; i < max_possible_num_candidates; i++) {
+	mix_sort_kernel<<<1, 1>>>(candidate_map, total, num_heads);
+	for (i = 0; i < max_possible_num_candidates * num_heads; i++) {
 		nearest_neighbours[i] = candidate_map[i].value;
 	}
 }
 
 // If blind querying is used, nearest_neighbours must be of size num_queries * max_possible_num_candidates; otherwise, it must be of size num_queries * num_neighbours
 // nearest_neighbour_dists can be NULL when blind querying is used
-void dci_query(dci* const dci_inst, const int dim, const int num_queries,
+void dci_query(dci* const dci_inst, const int num_heads, const int dim, const int num_queries,
 		const float* const query, const int num_neighbours,
 		const dci_query_config query_config, int* const nearest_neighbours,
 		float* const nearest_neighbour_dists, const int block_size,
@@ -784,6 +930,7 @@ void dci_query(dci* const dci_inst, const int dim, const int num_queries,
 	int max_possible_num_candidates = min(query_config.max_num_candidates,
 			query_config.num_outer_iterations);
 
+	assert(num_heads == dci_inst->num_heads)
 	assert(dim == dci_inst->dim);
 	assert(num_neighbours > 0);
 	assert(num_neighbours <= dci_inst->num_points);
@@ -797,70 +944,108 @@ void dci_query(dci* const dci_inst, const int dim, const int num_queries,
 	float* query_proj;
 
 	cudaMallocManaged((void **) (&query_proj),
-			sizeof(float) * num_indices * num_queries);
+			sizeof(float) * num_heads * num_indices * num_queries);
 
-	matmul_device(CUBLAS_OP_N, CUBLAS_OP_T, num_queries, num_indices,
-			dci_inst->dim, query, dci_inst->proj_vec, query_proj, devId);
+	for (int i = 0; i < num_head; i++) {
+		query_id = i * sizeof(float) * dci_inst->dim * num_queries;
+		proj_vec_id = i * sizeof(float) * dci_inst->dim * num_indices;
+		query_proj_id = i * sizeof(float) * num_indices * num_queries;
+
+		matmul_device(
+			CUBLAS_OP_N, 
+			CUBLAS_OP_T, 
+			num_queries, 
+			num_indices,
+			dci_inst->dim,
+			query[query_id], 
+			dci_inst->proj_vec[proj_vec_id], 
+			query_proj[query_proj_id], 
+			devId
+		);
+	}
+
+	//matmul_device(CUBLAS_OP_N, CUBLAS_OP_T, num_queries, num_indices,
+	//		dci_inst->dim, query, dci_inst->proj_vec, query_proj, devId);
 
 	// copy query config to device pointer
 	dci_query_config* d_query_config;
 	cudaMallocManaged((void **) (&d_query_config),
-			sizeof(dci_query_config));
-	cudaMemcpy(d_query_config, &query_config, sizeof(dci_query_config),
+			sizeof(dci_query_config) * num_heads);
+	cudaMemcpy(d_query_config, &query_config, sizeof(dci_query_config) * num_heads,
 			cudaMemcpyHostToDevice);
 
 	// make the raw nearest neighbors
 	int* d_all_candidates;
 	cudaMallocManaged((void **) (&d_all_candidates),
-			sizeof(int) * max_possible_num_candidates * block_size);
+			sizeof(int) * max_possible_num_candidates * block_size * num_heads);
 
 	float* d_top_candidates_dist;
 	cudaMalloc((void **) (&d_top_candidates_dist),
-			sizeof(float) * num_neighbours * block_size * thread_size);
+			sizeof(float) * num_neighbours * block_size * thread_size * num_heads);
 	int* d_top_candidates_index;
 	cudaMalloc((void **) (&d_top_candidates_index),
-			sizeof(int) * num_neighbours * block_size * thread_size);
+			sizeof(int) * num_neighbours * block_size * thread_size * num_heads);
 
 	int* counts;
 	cudaMallocManaged((void **) (&counts),
 			sizeof(int) * dci_inst->num_points
-					* dci_inst->num_comp_indices);
+					* dci_inst->num_comp_indices * num_heads);
 
 	float* candidate_dists;
 	cudaMallocManaged((void **) (&candidate_dists),
-			sizeof(float) * dci_inst->num_points);
+			sizeof(float) * dci_inst->num_points * num_heads);
+
+	// iterating by query
+	//for (int i = 0; i < num_heads; i++) {
 
 	for (int j = 0; j < num_queries; j++) {
+
 		// need to refresh the result holder to avoid carry over results
 		init_dist<<<block_size, thread_size>>>(d_top_candidates_dist,
-				num_neighbours * block_size * thread_size, DBL_MAX);
+				num_neighbours * block_size * thread_size * num_heads, DBL_MAX);
 
 		cudaDeviceSynchronize();
 		init_counts<<<block_size, thread_size>>>(dci_inst, counts);
 		init_candidate_dists<<<block_size, thread_size>>>(dci_inst,
-				candidate_dists);
+					candidate_dists);
 
 		cudaDeviceSynchronize();
 
-		dci_query_single_point_by_block<<<block_size, thread_size>>>(dci_inst,
-				num_neighbours, &(query[j * dim]),
-				&(query_proj[j * num_indices]), *d_query_config,
-				d_top_candidates_dist, d_top_candidates_index, d_all_candidates,
-				counts, candidate_dists);
+		// not yet done
+		dci_query_single_point_by_block<<<block_size, thread_size>>>(
+				dci_inst,
+				num_neighbours, 
+				&(query), 
+				&(query_proj), 
+				*d_query_config,
+				d_top_candidates_dist, 
+				d_top_candidates_index, 
+				d_all_candidates,
+				counts, 
+				candidate_dists
+			);
 
 		cudaDeviceSynchronize();
 
 		// get the final output
 		if (!query_config.blind) {
-			get_top_candidates(&(nearest_neighbours[j * num_neighbours]),
-					&(nearest_neighbour_dists[j * num_neighbours]),
-					d_top_candidates_dist, d_top_candidates_index,
-					num_neighbours, block_size * num_neighbours * thread_size);
+			get_top_candidates(
+					&(nearest_neighbours), 
+					&(nearest_neighbour_dists), 
+					d_top_candidates_dist, 
+					d_top_candidates_index, 
+					num_neighbours,
+					block_size * num_neighbours * thread_size,
+					num_heads
+				);
 		} else {
 			get_top_blind_candidates(
-					&(nearest_neighbours[j * max_possible_num_candidates]),
-					d_all_candidates, max_possible_num_candidates,
-					block_size * max_possible_num_candidates);
+					&(nearest_neighbours),
+					d_all_candidates, 
+					max_possible_num_candidates,
+					block_size * max_possible_num_candidates,
+					num_heads
+				);
 		}
 	}
 
@@ -886,7 +1071,7 @@ void dci_clear(dci* const dci_inst) {
 
 void dci_reset(dci* const dci_inst) {
 	dci_clear(dci_inst);
-	dci_gen_proj_vec(dci_inst->proj_vec, dci_inst->dim,
+	dci_gen_proj_vec(dci_inst->proj_vec, dci_init->num_heads, dci_inst->dim,
 			dci_inst->num_comp_indices * dci_inst->num_simp_indices);
 }
 
@@ -901,12 +1086,14 @@ void dci_free(const dci* const dci_inst) {
 void dci_dump(const dci* const dci_inst) {
 	int i, j;
 	int num_indices = dci_inst->num_comp_indices * dci_inst->num_simp_indices;
-	for (j = 0; j < num_indices; j++) {
-		for (i = 0; i < dci_inst->num_points; i++) {
-			printf("%f[%d],",
-					dci_inst->indices[i + j * (dci_inst->num_points)].key,
-					dci_inst->indices[i + j * (dci_inst->num_points)].value);
+	for (h = 0; h < dci_inst->num_heads; h++) {
+		for (j = 0; j < num_indices; j++) {
+			for (i = 0; i < dci_inst->num_points; i++) {
+				printf("%f[%d],",
+						dci_inst->indices[i + j * (dci_inst->num_points) + h * num_indices * (dci_inst->num_points)].key,
+						dci_inst->indices[i + j * (dci_inst->num_points) + h * num_indices * (dci_inst->num_points)].value);
+			}
+			printf("\n");
 		}
-		printf("\n");
 	}
 }
