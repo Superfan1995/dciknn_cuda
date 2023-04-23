@@ -72,7 +72,7 @@ __device__
 void insertion_sort(idx_elem arr[], int n);
 
 // // Note: the data itself is not kept in the index and must be kept in-place
-void dci_add(dci* const dci_inst, const int num_heads, const int num_head, const int dim, const int num_points,
+void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int num_points,
 		float* const data, const int block_size, const int thread_size);
 
 void dci_query(dci* const dci_inst, const int num_heads, const int dim,

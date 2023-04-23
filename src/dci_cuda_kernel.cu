@@ -238,9 +238,9 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 			num_indices, 
 			num_points,
 			dci_inst->dim,
-			dci_inst->proj_vec[proj_vec_id], 
-			dci_inst->data[data_id], 
-			data_proj[data_proj_id], 
+			&(dci_inst->proj_vec[proj_vec_id]), 
+			&(dci_inst->data[data_id]), 
+			&(data_proj[data_proj_id]), 
 			dci_inst->devID
 		);
 	}
@@ -519,9 +519,9 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 	int max_possible_num_candidates = min(query_config.max_num_candidates,
 			query_config.num_outer_iterations);
 
-	int points_per_block = (dci_inst->num_points * dci_init->num_heads + gridDim.x - 1) / gridDim.x;
+	int points_per_block = ((dci_inst->num_points) * (dci_init->num_heads) + gridDim.x - 1) / gridDim.x;
 	int num_points_in_block = min(
-			(int) (dci_inst->num_points * dci_init->num_heads - blockIdx.x * points_per_block),
+			(int) ((dci_inst->num_points) * (dci_init->num_heads) - blockIdx.x * points_per_block),
 			points_per_block);
 
 	if (num_points_in_block > 0) {
@@ -532,10 +532,10 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 		__shared__ float* index_priority;
 		// init variables
 		if (threadIdx.x == 0) {
-			left_pos = new int[num_indices * dci_init->num_heads];
-			right_pos = new int[num_indices * dci_init->num_heads];
-			cur_pos = new int[num_indices * dci_init->num_heads];
-			index_priority = new float[num_indices * dci_init->num_heads];
+			left_pos = new int[(dci_init->num_heads) * num_indices];
+			right_pos = new int[(dci_init->num_heads) * num_indices];
+			cur_pos = new int[(dci_init->num_heads) * num_indices];
+			index_priority = new float[(dci_init->num_heads) * num_indices];
 		}
 		__syncthreads();
 
@@ -960,9 +960,9 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim, const in
 			num_queries, 
 			num_indices,
 			dci_inst->dim,
-			query[query_id], 
-			dci_inst->proj_vec[proj_vec_id], 
-			query_proj[query_proj_id], 
+			&(query[query_id]), 
+			&(dci_inst->proj_vec[proj_vec_id]), 
+			&(query_proj[query_proj_id]), 
 			devId
 		);
 	}
@@ -1038,7 +1038,7 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim, const in
 					d_top_candidates_dist, 
 					d_top_candidates_index,
 					num_neighbours, 
-					block_size * num_neighbours * thread_size
+					block_size * num_neighbours * thread_size,
 					num_heads
 				);
 		} else {
@@ -1074,8 +1074,8 @@ void dci_clear(dci* const dci_inst) {
 
 void dci_reset(dci* const dci_inst) {
 	dci_clear(dci_inst);
-	dci_gen_proj_vec(dci_inst->proj_vec, dci_init->num_heads, dci_inst->dim,
-			dci_inst->num_comp_indices * dci_inst->num_simp_indices);
+	dci_gen_proj_vec(dci_inst->proj_vec, dci_inst->num_heads, dci_inst->dim,
+			(dci_inst->num_comp_indices) * (dci_inst->num_simp_indices));
 }
 
 void dci_free(const dci* const dci_inst) {
