@@ -519,9 +519,11 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 	int max_possible_num_candidates = min(query_config.max_num_candidates,
 			query_config.num_outer_iterations);
 
-	int points_per_block = ((dci_inst->num_points) * (dci_init->num_heads) + gridDim.x - 1) / gridDim.x;
+	int num_points = dci_inst->num_points;
+	int num_heads = dci_init->num_heads;
+	int points_per_block = (num_points * num_heads + gridDim.x - 1) / gridDim.x;
 	int num_points_in_block = min(
-			(int) ((dci_inst->num_points) * (dci_init->num_heads) - blockIdx.x * points_per_block),
+			(int) (num_points * num_heads - blockIdx.x * points_per_block),
 			points_per_block);
 
 	if (num_points_in_block > 0) {
@@ -532,10 +534,10 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 		__shared__ float* index_priority;
 		// init variables
 		if (threadIdx.x == 0) {
-			left_pos = new int[(dci_init->num_heads) * num_indices];
-			right_pos = new int[(dci_init->num_heads) * num_indices];
-			cur_pos = new int[(dci_init->num_heads) * num_indices];
-			index_priority = new float[(dci_init->num_heads) * num_indices];
+			left_pos = new int[num_heads * num_indices];
+			right_pos = new int[num_heads * num_indices];
+			cur_pos = new int[num_heads * num_indices];
+			index_priority = new float[num_heads * num_indices];
 		}
 		__syncthreads();
 
