@@ -33,7 +33,7 @@ class DCI(object):
         self._num_heads = num_heads
         self._num_comp_indices = num_comp_indices
         self._num_simp_indices = num_simp_indices
-        self._dci_inst = _dci_new(dim, num_comp_indices, num_simp_indices, device)
+        self._dci_inst = _dci_new(num_heads, dim, num_comp_indices, num_simp_indices, device)
         self._array = None
         self._block_size = bs
         self._thread_size = ts
