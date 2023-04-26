@@ -73,7 +73,7 @@ def main():
     # initialize the DCI instance
     for i in range(2):
         a = datetime.datetime.now()
-        dci_db = MDCI(dim, num_heads, num_comp_indices, num_simp_indices, block_size, thread_size, devices=[0, 1])
+        dci_db = MDCI(num_heads, dim, num_comp_indices, num_simp_indices, block_size, thread_size, devices=[0, 1])
 
         dci_db.add(data)
         # Query
@@ -87,7 +87,7 @@ def main():
         data = data_and_queries[:num_pts, :].detach().clone().to(0)
         query = data_and_queries[num_pts:, :].detach().clone().to(0)
         a = datetime.datetime.now()
-        dci_db = DCI(dim, num_heads, num_comp_indices, num_simp_indices, block_size, thread_size, device=0)
+        dci_db = DCI(num_heads, dim, num_comp_indices, num_simp_indices, block_size, thread_size, device=0)
 
         dci_db.add(data)
         # Query

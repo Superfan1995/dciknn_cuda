@@ -42,6 +42,10 @@ class DCI(object):
     @property
     def dim(self):
         return self._dim
+    
+    @property
+    def num_heads(self):
+        return self._num_heads
         
     @property
     def num_comp_indices(self):
@@ -58,7 +62,7 @@ class DCI(object):
             raise ValueError("number must be positive")
     
     def _check_data(self, arr):
-        if arr.shape[1] != self.dim:
+        if arr.shape[1] != self.dim * self.num_heads:
             raise ValueError("mismatch between tensor dimension (%d) and the declared dimension of this DCI instance (%d)" % (arr.shape[1], self.dim))
         if arr.dtype != torch.float:
             raise TypeError("tensor must consist of double-precision floats")
