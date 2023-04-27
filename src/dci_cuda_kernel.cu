@@ -228,9 +228,12 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
     //cublasDestroy(handle);
 	
 	for (int i = 0; i < num_heads; i++) {
-		int data_id = i * sizeof(float) * num_points * dim;
-		int proj_vec_id = i * sizeof(float) * dim * num_indices;
-		int data_proj_id = i * sizeof(float) * num_points * num_indices;
+		//int data_id = i * sizeof(float) * num_points * dim;
+		//int proj_vec_id = i * sizeof(float) * dim * num_indices;
+		//int data_proj_id = i * sizeof(float) * num_points * num_indices;
+		int data_id = i * num_points * dim;
+		int proj_vec_id = i * dim * num_indices;
+		int data_proj_id = i * num_points * num_indices;
 
 		matmul_device(
 			CUBLAS_OP_N, 
@@ -950,9 +953,12 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim, const in
 			sizeof(float) * num_heads * num_indices * num_queries);
 
 	for (int i = 0; i < num_heads; i++) {
-		int query_id = i * sizeof(float) * dci_inst->dim * num_queries;
-		int proj_vec_id = i * sizeof(float) * dci_inst->dim * num_indices;
-		int query_proj_id = i * sizeof(float) * num_indices * num_queries;
+		//int query_id = i * sizeof(float) * dci_inst->dim * num_queries;
+		//int proj_vec_id = i * sizeof(float) * dci_inst->dim * num_indices;
+		//int query_proj_id = i * sizeof(float) * num_indices * num_queries;
+		int query_id = i * dci_inst->dim * num_queries;
+		int proj_vec_id = i * dci_inst->dim * num_indices;
+		int query_proj_id = i * num_indices * num_queries;
 
 		matmul_device(
 			CUBLAS_OP_N, 
