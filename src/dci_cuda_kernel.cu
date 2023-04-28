@@ -596,8 +596,8 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 								} else {
 									// Compute distance
 									cur_dist = compute_dist_device(
-											&(dci_inst->data[cur_point * dci_inst->dim
-												+  head * num_points * dim]), query,
+											&(dci_inst->data[cur_point * (dci_inst->dim)
+												+  head * (dci_inst->num_points) * (dci_inst->dim)]), query,
 											dci_inst->dim);
 									candidate_dists[cur_point] = cur_dist;
 									if (num_candidates < num_neighbours) {
@@ -972,7 +972,7 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 					d_top_candidates_index, 
 					d_all_candidates,
 					counts, 
-					candidate_dists,
+					candidate_dists
 				);
 
 			cudaDeviceSynchronize();
