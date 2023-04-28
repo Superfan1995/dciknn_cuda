@@ -41,7 +41,7 @@ def main():
     dim = 100
     num_pts = 3000
     num_queries = 500
-    num_heads = 1
+    num_heads = 2
     # dim = 80
     # num_pts = 1000
     # num_queries = 100
@@ -94,7 +94,7 @@ def main():
         a = datetime.datetime.now()
         dci_db = DCI(num_heads, dim, num_comp_indices, num_simp_indices, block_size, thread_size, device=0)
 
-        dci_db.add(data)
+        dci_db.add(data, num_pts)
         # Query
         indices, dists = dci_db.query(query, num_queries, num_neighbours, num_outer_iterations)
         print("Nearest Indices:", indices)

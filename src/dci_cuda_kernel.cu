@@ -69,7 +69,7 @@ __global__ void normalize_proj_vecs(float* const proj_vec, const int num_heads, 
 		vec_index = i * chunk_size + j;
 
 		// total number of index = num_indices * num_head
-		if (vec_index < num_indices * num_heads) {
+		if (vec_index < (num_indices * num_heads)) {
 			float sq_norm = 0.0;
 			for (int k = 0; k < dim; ++k) {
 				sq_norm += proj_vec[vec_index * dim + k]
@@ -169,12 +169,10 @@ __global__ void copy_to_indices(dci* const dci_inst, const int num_heads,
 		if (idx < n) {
 			dci_inst->indices[idx].key = data_proj[idx];
 			dci_inst->indices[idx].value = idx % (num_points * num_heads);
-			//dci_inst->indices[idx].value = idx % (num_heads * num_points);
 		}
 	}
 }
 
-/* Heads: This is currently not working*/
 /* Add data to the master DCI data structure.  */
 void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int num_points,
 		float* const data, const int block_size, const int thread_size) {
