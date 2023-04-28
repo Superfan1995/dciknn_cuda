@@ -80,7 +80,7 @@ class DCI(object):
         self._array = data
     
     # query is num_queries x dim, returns num_queries x num_neighbours
-    def query(self, query, num_neighbours=-1, num_outer_iterations=5000, blind=False):
+    def query(self, query, num_queries, num_neighbours=-1, num_outer_iterations=5000, blind=False):
         if len(query.shape) < 2:
             _query = query.unsqueeze(0)
         else:
@@ -92,7 +92,8 @@ class DCI(object):
         max_num_candidates = 10 * num_neighbours
         # num_queries x num_neighbours
 
-        _query_result = _dci_query(self._dci_inst, self._num_heads, self._dim, _query.shape[0], _query.flatten(), num_neighbours, blind, num_outer_iterations, max_num_candidates, self._block_size, self._thread_size)
+        _query_result = _dci_query(self._dci_inst, self._num_heads, self._dim, num_queries, _query.flatten(), num_neighbours, blind, num_outer_iterations, max_num_candidates, self._block_size, self._thread_size)
+       
         half = _query_result.shape[0] // 2
         return _query_result[:half].reshape(_query.shape[0], -1), _query_result[half:].reshape(_query.shape[0], -1)
     
