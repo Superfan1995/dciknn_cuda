@@ -232,8 +232,8 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 		//int data_id = i * sizeof(float) * num_points * dim;
 		//int proj_vec_id = i * sizeof(float) * dim * num_indices;
 		//int data_proj_id = i * sizeof(float) * num_points * num_indices;
-		int data_id = i * num_points * dim;
 		int proj_vec_id = i * dim * num_indices;
+		int data_id = i * num_points * dim;
 		int data_proj_id = i * num_points * num_indices;
 
 		matmul_device(
@@ -379,9 +379,8 @@ static inline int dci_search_index(const idx_elem* const idx, const float key,
 
 /* Search indices */
 __device__ void search_index(const dci* const dci_inst,
-		const float* const query_proj, const int head, const int num_queries,
-		const int num_indices, int* const left_pos, int* const right_pos, 
-		const int points_per_block) {
+		const float* const query_proj, const int head, const int num_indices, 
+		int* const left_pos, int* const right_pos, const int points_per_block) {
 	int total = num_indices;
 	int chunk_size = (total + blockDim.x - 1) / blockDim.x;
 	int idx;
@@ -392,7 +391,7 @@ __device__ void search_index(const dci* const dci_inst,
 					&(dci_inst->indices[idx * (dci_inst->num_points)
 							+ blockIdx.x * points_per_block
 							+ head * num_indices * (dci_inst->num_points)]),
-					query_proj[idx + head * num_indices * num_queries],
+					query_proj[idx],
 					min(dci_inst->num_points - blockIdx.x * points_per_block,
 							points_per_block)) - blockDim.x + 1;
 			right_pos[idx] = left_pos[idx] + blockDim.x;
@@ -401,7 +400,7 @@ __device__ void search_index(const dci* const dci_inst,
 }
 
 __device__ void init_index_priority(const dci* const dci_inst,
-		const float* const query_proj, const int head, const int num_queries, 
+		const float* const query_proj, const int head, 
 		const int num_indices, int* const left_pos, int* const right_pos, 
 		float* const index_priority, int* const cur_pos, 
 		const int points_per_block) {
@@ -419,7 +418,7 @@ __device__ void init_index_priority(const dci* const dci_inst,
 							+ blockIdx.x * points_per_block
 							+ head * num_indices * (dci_inst->num_points)]),
 					&(left_pos[idx]), &(right_pos[idx]), 
-					query_proj[idx + head * num_indices * num_queries],
+					query_proj[idx],
 					num_points_in_block);
 			int position;
 			if ((cur_pos[idx] < 0) && (cur_pos[idx] > -blockDim.x)) {
@@ -437,7 +436,7 @@ __device__ void init_index_priority(const dci* const dci_inst,
 							idx * (dci_inst->num_points)
 							+ blockIdx.x * points_per_block
 							+ head * num_indices * (dci_inst->num_points)].key
-							- query_proj[idx + head * num_indices * num_queries]);
+							- query_proj[idx]);
 		}
 	}
 }
@@ -487,11 +486,10 @@ __global__ void init_candidate_indices(const dci* const dci_inst,
 // For blind querying, top_candidates is not used; all_candidates is used to store candidates in the order of retrieval
 __global__
 static void dci_query_single_point_by_block(const dci* const dci_inst,
-		const int num_neighbours, const int num_queries, const int head, 
-		const float* const query, const float* const query_proj, 
-		const dci_query_config query_config, float* const d_top_candidates_dist, 
-		int* const d_top_candidates_index, int* const all_candidates, 
-		int* counts, float* candidate_dists) {
+		const int num_neighbours, cosnt head, const float* const query, const float* 
+		const query_proj, const dci_query_config query_config, 
+		float* const d_top_candidates_dist, int* const d_top_candidates_index, 
+		int* const all_candidates, int* counts, float* candidate_dists) {
 	int j, h;
 	float cur_dist;
 	int num_indices = dci_inst->num_comp_indices * dci_inst->num_simp_indices;
@@ -531,14 +529,13 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 		__syncthreads();
 
 		/* Search index */
-		search_index(dci_inst, query_proj, head, num_queries, num_indices, left_pos, right_pos,
-				points_per_block);
+		search_index(dci_inst, query_proj, head, num_indices, left_pos, right_pos, points_per_block);
 
 		/* Synchronize the threads */
 		__syncthreads();
 
 		/* Populate the closest indices */
-		init_index_priority(dci_inst, query_proj, head, num_queries, num_indices, left_pos, right_pos,
+		init_index_priority(dci_inst, query_proj, head, num_indices, left_pos, right_pos,
 				index_priority, cur_pos, points_per_block);
 
 		/* Synchronize the threads */
@@ -596,8 +593,9 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 								} else {
 									// Compute distance
 									cur_dist = compute_dist_device(
-											&(dci_inst->data[cur_point * (dci_inst->dim)
-												+  head * (dci_inst->num_points) * (dci_inst->dim)]), query,
+											&(dci_inst->data[cur_point * dci_inst->dim
+													+  head * (dci_inst->num_points) * (dci_inst->dim)]), 
+													query,
 											dci_inst->dim);
 									candidate_dists[cur_point] = cur_dist;
 									if (num_candidates < num_neighbours) {
@@ -656,10 +654,9 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 					if (threadIdx.x == 0) {
 						cur_pos[i] = dci_next_closest_proj(
 								&(dci_inst->indices[i * (dci_inst->num_points)
-										+ blockIdx.x * points_per_block
-										+ head * num_indices * (dci_inst->num_points)]),
-								&(left_pos[i]), &(right_pos[i]), 
-								query_proj[i + head * num_indices * num_queries],
+										+ blockIdx.x * points_per_block]
+										+ head * num_indices * (dci_inst->num_points)),
+								&(left_pos[i]), &(right_pos[i]), query_proj[i],
 								num_points_in_block);
 						if ((cur_pos[i] < 0) && (cur_pos[i] > -blockDim.x)) {
 							position = 0;
@@ -676,7 +673,7 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 											+ i * (dci_inst->num_points)
 											+ blockIdx.x * points_per_block
 											+ head * num_indices * (dci_inst->num_points)].key
-											- query_proj[i + head * num_indices * num_queries]);
+											- query_proj[i]);
 						} else {
 							index_priority[i] = DBL_MAX;
 							cur_pos[i] = -blockDim.x;
@@ -714,7 +711,6 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 			free(index_priority);
 		}
 	}
-
 
 }
 
@@ -963,7 +959,6 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 			dci_query_single_point_by_block<<<block_size, thread_size>>>(
 					dci_inst,
 					num_neighbours,
-					num_queries,
 					i,
 					&(query[j * dim + i * num_queries * dim]),
 					&(query_proj[j * num_indices + i * num_queries * num_indices]), 
@@ -980,15 +975,15 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 			// get the final output
 			if (!query_config.blind) {
 				get_top_candidates(
-						&(nearest_neighbours[j * num_neighbours]),
-						&(nearest_neighbour_dists[j * num_neighbours]),
+						&(nearest_neighbours[j * num_neighbours + i * num_queries * num_neighbours]),
+						&(nearest_neighbour_dists[j * num_neighbours + i * num_queries * num_neighbours]),
 						d_top_candidates_dist, 
 						d_top_candidates_index,
 						num_neighbours, 
 						block_size * num_neighbours * thread_size);
 			} else {
 				get_top_blind_candidates(
-						&(nearest_neighbours[j * max_possible_num_candidates]),
+						&(nearest_neighbours[j * max_possible_num_candidates + i * num_queries * num_neighbours]),
 						d_all_candidates, 
 						max_possible_num_candidates,
 						block_size * max_possible_num_candidates);
