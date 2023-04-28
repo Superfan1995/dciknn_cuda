@@ -486,7 +486,7 @@ __global__ void init_candidate_indices(const dci* const dci_inst,
 // For blind querying, top_candidates is not used; all_candidates is used to store candidates in the order of retrieval
 __global__
 static void dci_query_single_point_by_block(const dci* const dci_inst,
-		const int num_neighbours, cosnt head, const float* const query, const float* 
+		const int num_neighbours, const head, const float* const query, const float* 
 		const query_proj, const dci_query_config query_config, 
 		float* const d_top_candidates_dist, int* const d_top_candidates_index, 
 		int* const all_candidates, int* counts, float* candidate_dists) {
