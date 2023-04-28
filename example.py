@@ -72,20 +72,20 @@ def main():
 
     # initialize the DCI instance
     for i in range(2):
-        #a = datetime.datetime.now()
-        #dci_db = MDCI(num_heads, dim, num_comp_indices, num_simp_indices, block_size, thread_size, devices=[0, 1])
+        a = datetime.datetime.now()
+        dci_db = MDCI(num_heads, dim, num_comp_indices, num_simp_indices, block_size, thread_size, devices=[0, 1])
 
-        #dci_db.add(data)
+        dci_db.add(data)
         # Query
-        #indices, dists = dci_db.query(query, num_neighbours, num_outer_iterations)
-        #print("Nearest Indices:", indices)
-        #print("Indices Distances:", dists)
-        #dci_db.clear()
-        #b = datetime.datetime.now()
-        #print(b-a)
+        indices, dists = dci_db.query(query, num_neighbours, num_outer_iterations)
+        print("Nearest Indices:", indices)
+        print("Indices Distances:", dists)
+        dci_db.clear()
+        b = datetime.datetime.now()
+        print(b-a)
 
-        #data = data_and_queries[:num_pts, :].detach().clone().to(0)
-        #query = data_and_queries[num_pts:, :].detach().clone().to(0)
+        data = data_and_queries[:num_pts, :].detach().clone().to(0)
+        query = data_and_queries[num_pts:, :].detach().clone().to(0)
        
         a = datetime.datetime.now()
         dci_db = DCI(num_heads, dim, num_comp_indices, num_simp_indices, block_size, thread_size, device=0)
@@ -97,10 +97,7 @@ def main():
         print("Indices Distances:", dists)
         dci_db.clear()
         b = datetime.datetime.now()
-        print(b-a)
-
-        data = data_and_queries[:num_pts, :].detach().clone().to(0)
-        query = data_and_queries[num_pts:, :].detach().clone().to(0)       
+        print(b-a)    
 
 if __name__ == '__main__':
     main()
