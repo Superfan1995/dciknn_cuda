@@ -131,7 +131,7 @@ class MDCI(object):
             cur_data = data[dev_ind * self.data_per_device: dev_ind * self.data_per_device + self.data_per_device].to(device)
             self.dcis[dev_ind].add(cur_data)
         
-    def query(self, query, num_neighbours=-1, num_outer_iterations=5000, blind=False):
+    def query(self, query, num_queries, num_neighbours=-1, num_outer_iterations=5000, blind=False):
         dists = []
         nns = []
         if num_neighbours <= 0:
@@ -147,11 +147,11 @@ class MDCI(object):
         max_num_candidates = 10 * num_neighbours
 
         queries = [_query.to(self.devices[dev_ind]).flatten() for dev_ind in self.devices]
-        res = _dci_multi_query([dc._dci_inst for dc in self.dcis], self.dcis[0]._num_heads, self.dcis[0]._dim, _query.shape[0], queries, num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
+        res = _dci_multi_query([dc._dci_inst for dc in self.dcis], self.dcis[0]._num_heads, self.dcis[0]._dim, num_queries, queries, num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
 
         for ind, cur_res in enumerate(res):
             half = cur_res.shape[0] // 2
-            cur_nns, cur_dist = cur_res[:half].reshape(_query.shape[0], -1), cur_res[half:].reshape(_query.shape[0], -1)
+            cur_nns, cur_dist = cur_res[:half].reshape(num_queries, -1), cur_res[half:].reshape(num_queries, -1)
             cur_nns = cur_nns + self.data_per_device * ind
             dists.append(cur_dist.detach().clone().to(self.devices[0]))
             nns.append(cur_nns.detach().clone().to(self.devices[0]))
