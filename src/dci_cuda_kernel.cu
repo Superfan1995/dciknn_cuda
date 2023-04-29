@@ -240,7 +240,7 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 	/*print result - testing*/
 	int data_size = sizeof(float) * num_heads * num_points * num_indices;
 	int *h_data = (int *) malloc(data_size);
-	cudaMemcpy(h_data, data_proj, DSIZE, cudaMemcpyDeviceToHost);
+	cudaMemcpy(h_data, data_proj, data_size, cudaMemcpyDeviceToHost);
 	printf(" %d ", *h_data);
 	
 	cudaFree(h_data);
