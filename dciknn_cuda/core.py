@@ -75,7 +75,7 @@ class DCI(object):
         if self.num_points > 0:
             raise RuntimeError("DCI class does not support insertion of more than one tensor. Must combine all tensors into one tensor before inserting")
         self._check_data(data)
-        self.num_points = data.shape[0] / self._num_heads
+        self.num_points = (int) (data.shape[0] / self._num_heads)
         _dci_add(self._dci_inst, self._num_heads, self._dim, self.num_points, data.flatten(), self._block_size, self._thread_size)
         self._array = data
     
