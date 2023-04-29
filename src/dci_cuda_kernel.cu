@@ -59,7 +59,8 @@ __global__ void normalize_proj_vecs(float* const proj_vec, const int num_heads, 
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
 	/* Note: Assumes num_blocks = num_threads */
 	// each chunk representing a contiguous sequence of blocks of 4d array elements each (?)
-	int chunk_size = (num_indices * num_heads + blockDim.x * blockDim.x - 1)
+	int total = num_indices * num_heads;
+	int chunk_size = (total + blockDim.x * blockDim.x - 1)
 			/ (blockDim.x * blockDim.x);
 
 	// vec_index: index of the projection vector
@@ -69,7 +70,7 @@ __global__ void normalize_proj_vecs(float* const proj_vec, const int num_heads, 
 		vec_index = i * chunk_size + j;
 
 		// total number of index = num_indices * num_head
-		if (vec_index < (num_indices * num_heads)) {
+		if (vec_index < total) {
 			float sq_norm = 0.0;
 			for (int k = 0; k < dim; ++k) {
 				sq_norm += proj_vec[vec_index * dim + k]
@@ -131,22 +132,16 @@ __global__ void sort_indices(dci* const dci_inst, const int num_heads, const int
 			(int) (dci_inst->num_points * num_heads - blockIdx.x * points_per_block),
 			points_per_block);
 
-	// Need to do this in loop of multi-head attention
-	// each attention heads need to sort independently
-	// how can I do that?
-	// sort is for each index, rather than indices, so should be fine
-	//for (int i = 0; i < num_heads; i++) {}
-
 	for (int j = 0; j < chunk_size; j++) {
 		idx = threadIdx.x * chunk_size + j;
 		if (idx < num_indices * num_heads) {
 
 			int head = (int) (idx / num_indices);
 			int num_elems_to_next_head = 
-				(head + 1) * num_indices * dci_inst->num_points - idx * (dci_inst->num_points);
+				(head + 1) * num_indices * (dci_inst->num_points) - idx * (dci_inst->num_points);
 
 			mix_sort(
-					&(dci_inst->indices[idx * dci_inst->num_points
+					&(dci_inst->indices[idx * (dci_inst->num_points)
 							+ points_per_block * blockIdx.x]),
 					min(
 						num_points_in_block,
@@ -222,14 +217,8 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 
 	// conclude: 	we still need to calculate each attention head seperately, matmul together will result
 	// 				calculate useless result
-
-    // Destroy the handle
-    //cublasDestroy(handle);
 	
 	for (int i = 0; i < num_heads; i++) {
-		//int data_id = i * sizeof(float) * num_points * dim;
-		//int proj_vec_id = i * sizeof(float) * dim * num_indices;
-		//int data_proj_id = i * sizeof(float) * num_points * num_indices;
 		int proj_vec_id = i * dim * num_indices;
 		int data_id = i * num_points * dim;
 		int data_proj_id = i * num_points * num_indices;
@@ -247,6 +236,8 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 		);
 	}
 	cudaDeviceSynchronize();
+
+	printf("%d", data_proj);
 
 	/* Add to indices */
 	copy_to_indices	<<<block_size, thread_size>>>(dci_inst, num_heads, data_proj, num_indices, num_points);
@@ -888,9 +879,6 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 			sizeof(float) * num_heads * num_indices * num_queries);
 
 	for (int i = 0; i < num_heads; i++) {
-		//int query_id = i * sizeof(float) * dci_inst->dim * num_queries;
-		//int proj_vec_id = i * sizeof(float) * dci_inst->dim * num_indices;
-		//int query_proj_id = i * sizeof(float) * num_indices * num_queries;
 		int query_id = i * dci_inst->dim * num_queries;
 		int proj_vec_id = i * dci_inst->dim * num_indices;
 		int query_proj_id = i * num_indices * num_queries;
