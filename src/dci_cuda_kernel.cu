@@ -234,10 +234,11 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 			&(data_proj[data_proj_id]), 
 			dci_inst->devID
 		);
+		printf("%d", data_proj);
 	}
 	cudaDeviceSynchronize();
 
-	printf("%d", data_proj);
+	//printf("%d", data_proj);
 
 	/* Add to indices */
 	copy_to_indices	<<<block_size, thread_size>>>(dci_inst, num_heads, data_proj, num_indices, num_points);
