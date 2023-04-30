@@ -163,7 +163,7 @@ __global__ void copy_to_indices(dci* const dci_inst, const int num_heads,
 		idx = i * chunk_size + j;
 		if (idx < n) {
 			dci_inst->indices[idx].key = data_proj[idx];
-			dci_inst->indices[idx].value = idx % (num_points * num_heads);
+			dci_inst->indices[idx].value = idx % num_points;
 		}
 	}
 }
@@ -238,24 +238,6 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 
 	cudaDeviceSynchronize();
 
-	/*print result - testing*/
-	int data_size = sizeof(float) * num_heads * num_points * num_indices;
-	float *h_data = (float *) malloc(data_size);
-	cudaMemcpy(h_data, data_proj, data_size, cudaMemcpyDeviceToHost);
-
-	int h = 1;
-	printf("head: %d\n", h);
-	for (int i = 0; i < num_indices; i++) {
-		printf("index: %d\n", i);
-		for (int j = 0; j < num_points; j++) {
-			printf("%f ", h_data[j + i * num_points + h * num_points * num_indices]);
-		}
-		printf("\n");
-	}
-	printf("\n");
-	cudaFree(h_data);
-	/*testing*/
-
 	/* Add to indices */
 	copy_to_indices	<<<block_size, thread_size>>>(dci_inst, num_heads, data_proj, num_indices, num_points);
 
@@ -264,21 +246,21 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 
 	/*print result - testing*/
 
-	//int data_size = sizeof(idx_elem) * num_heads * num_points * num_indices;
-	//idx_elem* *h_data = (idx_elem *) malloc(data_size);
-	//cudaMemcpy(h_data, dci_inst->indices, data_size, cudaMemcpyDeviceToHost);
+	int data_size = sizeof(idx_elem) * num_heads * num_points * num_indices;
+	idx_elem* *h_data = (idx_elem *) malloc(data_size);
+	cudaMemcpy(h_data, dci_inst->indices, data_size, cudaMemcpyDeviceToHost);
 
-	//int h = 0;
-	//printf("head: %d\n", h);
-	//for (int i = 0; i < num_indices; i++) {
-	//	printf("index: %d\n", i);
-	//	for (int j = 0; j < num_points; j++) {
+	int h = 0;
+	printf("head: %d\n", h);
+	for (int i = 0; i < num_indices; i++) {
+		printf("index: %d\n", i);
+		for (int j = 0; j < num_points; j++) {
+			printf("%f ", dci_inst->indices[idx].key);
+		}
+		printf("\n");
+	}
 
-	//	}
-	//	printf("\n");
-	//}
-
-	//cudaFree(h_data);
+	cudaFree(h_data);
 	/*testing*/
 
 	int points_per_block = (dci_inst->num_points * num_heads + block_size - 1) / block_size;
