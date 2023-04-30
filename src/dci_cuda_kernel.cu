@@ -255,7 +255,7 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 		for (int i = 0; i < num_indices; i++) {
 			printf("index: %d\n", i);
 			for (int j = 0; j < num_points; j++) {
-				printf("%f ", h_data[j + i * num_points + h * num_points * num_indices].key);
+				printf("%d ", h_data[j + i * num_points + h * num_points * num_indices].value);
 			}
 			printf("\n");
 		}
@@ -264,8 +264,6 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 	cudaFree(h_data);
 
 	printf("\n");
-
-	printf("%d\n", num_points);
 
 	/*testing*/
 
