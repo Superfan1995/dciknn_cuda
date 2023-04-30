@@ -252,30 +252,6 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 	/* Synchronize the threads */
 	cudaDeviceSynchronize();
 
-	/*print result - testing*/
-
-	int data_size = sizeof(idx_elem) * num_heads * num_points * num_indices;
-	idx_elem* h_data = (idx_elem *) malloc(data_size);
-	cudaMemcpy(h_data, dci_inst->indices, data_size, cudaMemcpyDeviceToHost);
-
-	for (int h = 0; h < num_heads; h++) {
-		printf("head: %d\n", h);
-		for (int i = 0; i < num_indices; i++) {
-			printf("index: %d\n", i);
-			for (int j = 0; j < num_points; j++) {
-				printf("%d ", h_data[j + i * num_points + h * num_points * num_indices].value);
-			}
-			printf("\n");
-		}
-		printf("head: %d\n", h);
-	}
-
-	cudaFree(h_data);
-
-	printf("\n");
-
-	/*testing*/
-
 	cudaFree(data_proj);
 }
 
@@ -918,6 +894,28 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 			devId
 		);
 	}
+
+	/*print result - testing*/
+	int data_size = sizeof(float) * num_heads * num_queries * num_indices;
+	float *h_data = (float *) malloc(data_size);
+	cudaMemcpy(h_data, query_proj, data_size, cudaMemcpyDeviceToHost);
+
+	for (int h = 0; h < num_heads; h++) {
+		printf("head: %d\n", h);
+		for (int i = 0; i < num_queries; i++) {
+			printf("query: %d\n", i);
+			for (int j = 0; j < num_indices; j++) {
+				printf("%f ", h_data[j + i * num_indices + h * num_queries * num_indices]);
+			}
+			printf("\n");
+		}
+		printf("head: %d\n", h);
+	}
+
+	cudaFree(h_data);
+
+	printf("num_queries = %d\n", num_queries);
+	/*testing*/
 
 	//matmul_device(CUBLAS_OP_N, CUBLAS_OP_T, num_queries, num_indices,
 	//		dci_inst->dim, query, dci_inst->proj_vec, query_proj, devId);

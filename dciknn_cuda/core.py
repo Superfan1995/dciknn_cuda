@@ -92,7 +92,7 @@ class DCI(object):
         max_num_candidates = 10 * num_neighbours
         # num_queries x num_neighbours
 
-        num_queries = _query.shape[0] / self._num_heads
+        num_queries = (int) (_query.shape[0] / self._num_heads)
         _query_result = _dci_query(self._dci_inst, self._num_heads, self._dim, num_queries, _query.flatten(), num_neighbours, blind, num_outer_iterations, max_num_candidates, self._block_size, self._thread_size)
 
         half = _query_result.shape[0] // 2
@@ -133,7 +133,7 @@ class MDCI(object):
             cur_data = data[dev_ind * self.data_per_device: dev_ind * self.data_per_device + self.data_per_device].to(device)
             self.dcis[dev_ind].add(cur_data, num_points)
         
-    def query(self, query, num_queries, num_neighbours=-1, num_outer_iterations=5000, blind=False):
+    def query(self, query, num_neighbours=-1, num_outer_iterations=5000, blind=False):
         dists = []
         nns = []
         if num_neighbours <= 0:
@@ -145,9 +145,9 @@ class MDCI(object):
             _query = query
         _query = _query.detach().clone()
 
-
         max_num_candidates = 10 * num_neighbours
 
+        num_queries = _query.shape[0] / self.dcis[0]._num_heads
         queries = [_query.to(self.devices[dev_ind]).flatten() for dev_ind in self.devices]
         res = _dci_multi_query([dc._dci_inst for dc in self.dcis], self.dcis[0]._num_heads, self.dcis[0]._dim, num_queries, queries, num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
 
