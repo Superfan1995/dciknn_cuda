@@ -267,6 +267,7 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 			}
 			printf("\n");
 		}
+		printf("head: %d\n", h);
 	}
 
 	cudaFree(h_data);
