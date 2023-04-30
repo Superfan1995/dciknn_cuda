@@ -235,6 +235,7 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 			dci_inst->devID
 		);
 	}
+
 	cudaDeviceSynchronize();
 
 	/*print result - testing*/
@@ -247,8 +248,7 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 	for (int i = 0; i < num_indices; i++) {
 		printf("index: %d\n", i);
 		for (int j = 0; j < num_points; j++) {
-			//printf("%f ", h_data[j + i * num_points + h * num_points * num_indices]);
-			printf("%f ", h_data[j + i * num_points]);
+			printf("%f ", h_data[j + i * num_points + h * num_points * num_indices]);
 		}
 		printf("\n");
 	}
@@ -262,14 +262,24 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 	/* Synchronize the threads */
 	cudaDeviceSynchronize();
 
-	//for (int i = 0; i < 2; i++) {
+	/*print result - testing*/
+
+	//int data_size = sizeof(idx_elem) * num_heads * num_points * num_indices;
+	//idx_elem* *h_data = (idx_elem *) malloc(data_size);
+	//cudaMemcpy(h_data, dci_inst->indices, data_size, cudaMemcpyDeviceToHost);
+
+	//int h = 0;
+	//printf("head: %d\n", h);
+	//for (int i = 0; i < num_indices; i++) {
+	//	printf("index: %d\n", i);
 	//	for (int j = 0; j < num_points; j++) {
-	//		printf("%f ", dci_inst->indices[j].key);
-			//printf("%d ", dci_inst->indices[j].value);
+
 	//	}
 	//	printf("\n");
-	//	printf("\n");
 	//}
+
+	//cudaFree(h_data);
+	/*testing*/
 
 	int points_per_block = (dci_inst->num_points * num_heads + block_size - 1) / block_size;
 	/* Sort the indices */
