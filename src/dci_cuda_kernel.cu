@@ -239,17 +239,19 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 
 	/*print result - testing*/
 	int data_size = sizeof(float) * num_heads * num_points * num_indices;
-	int *h_data = (int *) malloc(data_size);
+	float *h_data = (float *) malloc(data_size);
 	cudaMemcpy(h_data, data_proj, data_size, cudaMemcpyDeviceToHost);
-	
-	for (int i = 0; i < num_indices; i++) {
-		for (int j = 0; j < num_points; j++) {
-			printf("%f ", &h_data[j]);
-		}
-		printf("\n");
-	}
+	printf("%f\n", *h_data);
+
+	//for (int i = 0; i < num_indices; i++) {
+	//	for (int j = 0; j < num_points; j++) {
+	//		printf("%f ", &h_data[j]);
+	//	}
+	//	printf("\n");
+	//}
 	
 	cudaFree(h_data);
+	/*testing*/
 
 	/* Add to indices */
 	copy_to_indices	<<<block_size, thread_size>>>(dci_inst, num_heads, data_proj, num_indices, num_points);
