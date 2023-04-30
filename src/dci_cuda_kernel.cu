@@ -250,13 +250,12 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 	idx_elem* h_data = (idx_elem *) malloc(data_size);
 	cudaMemcpy(h_data, dci_inst->indices, data_size, cudaMemcpyDeviceToHost);
 
-	
-	printf("head: %d\n", h);
-	for (int h = 0; h < num_heads; h++)
+	for (int h = 0; h < num_heads; h++) {
+		printf("head: %d\n", h);
 		for (int i = 0; i < num_indices; i++) {
 			printf("index: %d\n", i);
 			for (int j = 0; j < num_points; j++) {
-				printf("%f ", dci_inst->indices[j + i * num_points + h * num_points * num_indices].key);
+				printf("%f ", h_data[j + i * num_points + h * num_points * num_indices].key);
 			}
 			printf("\n");
 		}
