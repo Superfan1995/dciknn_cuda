@@ -242,7 +242,7 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 	float *h_data = (float *) malloc(data_size);
 	cudaMemcpy(h_data, data_proj, data_size, cudaMemcpyDeviceToHost);
 
-	h = 0;
+	int h = 0;
 	printf("head: %d\n", h);
 	for (int i = 0; i < num_indices; i++) {
 		printf("index: %d\n", i);
