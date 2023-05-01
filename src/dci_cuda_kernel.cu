@@ -31,7 +31,6 @@
 /* CUDA runtime */
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
-#include "cuPrintf.cu"
 
 __device__
 float compute_dist_device(const float* const vec1, const float* const vec2,
@@ -521,10 +520,13 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 		/* Search index */
 		search_index(dci_inst, query_proj, head, num_indices, left_pos, right_pos, points_per_block);
 
+		// testing
 		for (int var = 0; var < num_indices; var++) {
-			cuPrintf("%d ", left_pos[var]);
+			//cuPrintf("%d ", left_pos[var]);
+			printf(left_pos[var])
 		}
-		cuPrintf("\n");
+		printf("\n");
+		//testing
 
 		/* Synchronize the threads */
 		__syncthreads();
