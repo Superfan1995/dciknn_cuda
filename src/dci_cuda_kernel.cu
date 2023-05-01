@@ -548,11 +548,11 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 		cudaMemcpy(h_data, left_pos, data_size, cudaMemcpyDeviceToHost);
 
 		/*testing*/
-		for (int var = 0; var < num_indices; var++) {
-			printf("%d ", h_data[var]);
-		}
-		printf("\n");
-		cudaFree(h_data);
+		//for (int var = 0; var < num_indices; var++) {
+		//	printf("%d ", h_data[var]);
+		//}
+		//printf("\n");
+		//cudaFree(h_data);
 		/*testing*/
 
 		/* Synchronize the threads */
@@ -1034,7 +1034,7 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 		}
 
 		/*testing*/
-		break;
+		//break;
 		/*testing*/
 	}
 
