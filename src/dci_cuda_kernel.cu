@@ -523,7 +523,7 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 		// testing
 		for (int var = 0; var < num_indices; var++) {
 			//cuPrintf("%d ", left_pos[var]);
-			printf(left_pos[var])
+			printf("%d ", left_pos[var]);
 		}
 		printf("\n");
 		//testing
