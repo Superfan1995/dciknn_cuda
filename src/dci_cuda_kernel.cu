@@ -31,6 +31,7 @@
 /* CUDA runtime */
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
+#include "cuPrintf.cu"
 
 __device__
 float compute_dist_device(const float* const vec1, const float* const vec2,
