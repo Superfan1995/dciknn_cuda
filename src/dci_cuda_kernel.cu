@@ -895,28 +895,6 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 		);
 	}
 
-	/*print result - testing*/
-	int data_size = sizeof(float) * num_heads * num_queries * num_indices;
-	float *h_data = (float *) malloc(data_size);
-	cudaMemcpy(h_data, query_proj, data_size, cudaMemcpyDeviceToHost);
-
-	for (int h = 0; h < num_heads; h++) {
-		printf("head: %d\n", h);
-		for (int i = 0; i < num_queries; i++) {
-			printf("query: %d\n", i);
-			for (int j = 0; j < num_indices; j++) {
-				printf("%f ", h_data[j + i * num_indices + h * num_queries * num_indices]);
-			}
-			printf("\n");
-		}
-		printf("head: %d\n", h);
-	}
-
-	cudaFree(h_data);
-
-	printf("num_queries = %d\n", num_queries);
-	/*testing*/
-
 	//matmul_device(CUBLAS_OP_N, CUBLAS_OP_T, num_queries, num_indices,
 	//		dci_inst->dim, query, dci_inst->proj_vec, query_proj, devId);
 
@@ -976,6 +954,26 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 					counts, 
 					candidate_dists
 				);
+			
+			/*print result - testing*/
+			
+			int data_size = sizeof(float) * num_neighbours * block_size * thread_size;
+			float *h_data = (float *) malloc(data_size);
+			cudaMemcpy(h_data, d_top_candidates_dist, data_size, cudaMemcpyDeviceToHost);
+
+			printf("head: %d, query: %d\n", i, j);
+			for (int a1 = 0; a1 < block_size; a1++) {
+				for (int a2 = 0; a2 < thread_size; a2++) {
+					for (int a3 = 0; a3 < num_neighbours; a3++) {
+						printf("%f ", h_data[a1 * num_neighbours + a2 * num_neighbours + a3]);
+					}
+					printf("\n");
+				}
+			}
+			printf("head: %d, query: %d\n", i, j);
+
+			cudaFree(h_data);
+			/*testing*/
 
 			cudaDeviceSynchronize();
 
