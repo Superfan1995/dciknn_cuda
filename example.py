@@ -91,7 +91,7 @@ def main():
         data = data_and_queries[:(num_pts*num_heads), :].detach().clone().to(0)
         query = data_and_queries[(num_pts*num_heads):, :].detach().clone().to(0)
        
-        a = datetime.datetime.now()
+        #a = datetime.datetime.now()
         dci_db = DCI(num_heads, dim, num_comp_indices, num_simp_indices, block_size, thread_size, device=0)
 
         dci_db.add(data)
