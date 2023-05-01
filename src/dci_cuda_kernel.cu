@@ -543,9 +543,9 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 		search_index(dci_inst, query_proj, head, num_indices, left_pos, right_pos, points_per_block);
 
 		/*print result - testing*/
-		int data_size = sizeof(int) * num_indices;
-		int *h_data = (int *) malloc(data_size);
-		cudaMemcpy(h_data, left_pos, data_size, cudaMemcpyDeviceToHost);
+		//int data_size = sizeof(int) * num_indices;
+		//int *h_data = (int *) malloc(data_size);
+		//cudaMemcpy(h_data, left_pos, data_size, cudaMemcpyDeviceToHost);
 
 		/*testing*/
 		//for (int var = 0; var < num_indices; var++) {
