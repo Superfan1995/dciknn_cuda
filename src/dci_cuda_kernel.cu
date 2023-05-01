@@ -239,6 +239,7 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 	cudaDeviceSynchronize();
 
 	/*print result - testing*/
+	/*
 	int data_size = sizeof(float) * num_heads * num_points * num_indices;
 	float *h_data = (float *) malloc(data_size);
 	cudaMemcpy(h_data, data_proj, data_size, cudaMemcpyDeviceToHost);
@@ -256,6 +257,7 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 	}
 	printf("\n");
 	cudaFree(h_data);
+	*/
 	/*testing*/
 
 	/* Add to indices */
@@ -546,8 +548,8 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 		cudaMemcpy(h_data, left_pos, data_size, cudaMemcpyDeviceToHost);
 
 		/*testing*/
-		for (int i = 0; i < num_indices; i++) {
-			printf("%f ", h_data[i]);
+		for (int var = 0; var < num_indices; var++) {
+			printf("%f ", h_data[var]);
 		}
 		printf("\n");
 		cudaFree(h_data);
