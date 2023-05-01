@@ -238,6 +238,24 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 
 	cudaDeviceSynchronize();
 
+	/*print result - testing*/
+	int data_size = sizeof(float) * num_heads * num_points * num_indices;
+	float *h_data = (float *) malloc(data_size);
+	cudaMemcpy(h_data, data_proj, data_size, cudaMemcpyDeviceToHost);
+
+	int h = 1;
+	printf("head: %d\n", h);
+	for (int i = 0; i < num_indices; i++) {
+		printf("index: %d\n", i);
+		for (int j = 0; j < num_points; j++) {
+			printf("%f ", h_data[j + i * num_points + h * num_points * num_indices]);
+		}
+		printf("\n");
+	}
+	printf("\n");
+	cudaFree(h_data);
+	/*testing*/
+
 	/* Add to indices */
 	copy_to_indices	<<<block_size, thread_size>>>(dci_inst, num_heads, data_proj, num_indices, num_points);
 
@@ -378,7 +396,8 @@ __device__ void search_index(const dci* const dci_inst,
 			left_pos[idx] = dci_search_index(
 					&(dci_inst->indices[idx * (dci_inst->num_points)
 							+ blockIdx.x * points_per_block
-							+ head * num_indices * (dci_inst->num_points)]),
+							+ head * num_indices * (dci_inst->num_points)
+						]),
 					query_proj[idx],
 					min(dci_inst->num_points - blockIdx.x * points_per_block,
 							points_per_block)) - blockDim.x + 1;
@@ -954,9 +973,9 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 					counts, 
 					candidate_dists
 				);
-			
+
 			/*print result - testing*/
-			
+			/*
 			int data_size = sizeof(float) * num_neighbours * block_size * thread_size;
 			float *h_data = (float *) malloc(data_size);
 			cudaMemcpy(h_data, d_top_candidates_dist, data_size, cudaMemcpyDeviceToHost);
@@ -973,6 +992,8 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 			printf("head: %d, query: %d\n", i, j);
 
 			cudaFree(h_data);
+			breaks;
+			*/
 			/*testing*/
 
 			cudaDeviceSynchronize();
@@ -994,6 +1015,10 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 						block_size * max_possible_num_candidates);
 			}
 		}
+
+		/*testing*/
+		//break;
+		/*testing*/
 	}
 
 	// free the allocated memories
