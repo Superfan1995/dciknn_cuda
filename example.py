@@ -41,7 +41,7 @@ def main():
     dim = 100
     num_pts = 3000
     num_queries = 500
-    num_heads = 2
+    num_heads = 1
     # dim = 80
     # num_pts = 1000
     # num_queries = 100
@@ -91,17 +91,17 @@ def main():
         data = data_and_queries[:(num_pts*num_heads), :].detach().clone().to(0)
         query = data_and_queries[(num_pts*num_heads):, :].detach().clone().to(0)
        
-        #a = datetime.datetime.now()
+        a = datetime.datetime.now()
         dci_db = DCI(num_heads, dim, num_comp_indices, num_simp_indices, block_size, thread_size, device=0)
 
         dci_db.add(data)
         # Query
         indices, dists = dci_db.query(query, num_neighbours, num_outer_iterations)
-        #print("Nearest Indices:", indices)
-        #print("Indices Distances:", dists)
-        #dci_db.clear()
-        #b = datetime.datetime.now()
-        #print(b-a)    
+        print("Nearest Indices:", indices)
+        print("Indices Distances:", dists)
+        dci_db.clear()
+        b = datetime.datetime.now()
+        print(b-a)    
 
 if __name__ == '__main__':
     main()

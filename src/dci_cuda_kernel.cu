@@ -521,11 +521,11 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 		search_index(dci_inst, query_proj, head, num_indices, left_pos, right_pos, points_per_block);
 
 		// testing
-		for (int var = 0; var < num_indices; var++) {
-			//cuPrintf("%d ", left_pos[var]);
-			printf("%d ", left_pos[var]);
-		}
-		printf("\n");
+		//for (int var = 0; var < num_indices; var++) {
+		//	//cuPrintf("%d ", left_pos[var]);
+		//	printf("%d ", left_pos[var]);
+		//}
+		//printf("\n");
 		//testing
 
 		/* Synchronize the threads */
@@ -1004,10 +1004,14 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 						max_possible_num_candidates,
 						block_size * max_possible_num_candidates);
 			}
+
+			/*testing*/
+			//break;
+			/*testing*/
 		}
 
 		/*testing*/
-		break;
+		//break;
 		/*testing*/
 	}
 
