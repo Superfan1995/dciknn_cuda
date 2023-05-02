@@ -152,8 +152,8 @@ __global__ void sort_indices(dci* const dci_inst, const int num_heads, const int
 }
 
 /* Copy data in proj_vec to indices */
-__global__ void copy_to_indices(dci* const dci_inst, const int num_heads, 
-		float* const data_proj, const int num_indices, const int num_points) {
+__global__ void copy_to_indices(dci* const dci_inst, float* const data_proj, 
+	const int num_heads, const int num_indices, const int num_points) {
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
 	int n = num_heads * num_indices * num_points;
 	int chunk_size = (n + blockDim.x * gridDim.x - 1)
@@ -240,7 +240,7 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 	cudaDeviceSynchronize();
 
 	/* Add to indices */
-	copy_to_indices	<<<block_size, thread_size>>>(dci_inst, data_proj, num_indices, num_points);
+	copy_to_indices	<<<block_size, thread_size>>>(dci_inst, data_proj, num_heads, num_indices, num_points);
 
 	/* Synchronize the threads */
 	cudaDeviceSynchronize();
