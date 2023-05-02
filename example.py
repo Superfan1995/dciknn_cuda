@@ -41,8 +41,8 @@ def main():
     #                                                                                                                                           #
     #############################################################################################################################################
     dim = 100
-    num_pts = 3000 # 3000
-    num_queries = 500 #500
+    num_pts = 1000 # 3000
+    num_queries = 100 #500
     num_heads = 2
     # dim = 80
     # num_pts = 1000
@@ -104,7 +104,6 @@ def main():
         dci_db.clear()
         #b = datetime.datetime.now()
         #print(b-a) 
-        break
 
 if __name__ == '__main__':
     main()
