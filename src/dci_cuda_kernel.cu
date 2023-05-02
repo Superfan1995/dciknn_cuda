@@ -961,17 +961,17 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 				);
 
 			/*print result - testing*/
-			int data_size = sizeof(float) * dci_inst->num_points;
-			float *h_data = (float *) malloc(data_size);
-			cudaMemcpy(h_data, candidate_dists, data_size, cudaMemcpyDeviceToHost);
+			//int data_size = sizeof(float) * dci_inst->num_points;
+			//float *h_data = (float *) malloc(data_size);
+			//cudaMemcpy(h_data, candidate_dists, data_size, cudaMemcpyDeviceToHost);
 
-			printf("head: %d, query: %d\n", i, j);
-			for (int a1 = 0; a1 < dci_inst->num_points; a1++) {
-				printf("%f ", h_data[a1]);
-			}
-			printf("\n");
-			printf("head: %d, query: %d\n", i, j);
-			cudaFree(h_data);
+			//printf("head: %d, query: %d\n", i, j);
+			//for (int a1 = 0; a1 < dci_inst->num_points; a1++) {
+			//	printf("%f ", h_data[a1]);
+			//}
+			//printf("\n");
+			//printf("head: %d, query: %d\n", i, j);
+			//cudaFree(h_data);
 			/*testing*/
 
 			cudaDeviceSynchronize();
