@@ -240,31 +240,6 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 
 	cudaDeviceSynchronize();
 
-	/* Add to indices */
-	copy_to_indices	<<<block_size, thread_size>>>(dci_inst, num_heads, data_proj, num_indices, num_points);
-
-	/*print result - testing*/
-	int data_size = sizeof(idx_elem) * num_heads * num_points * num_indices;
-	idx_elem* h_data = (idx_elem *) malloc(data_size);
-	cudaMemcpy(h_data, dci_inst->indices, data_size, cudaMemcpyDeviceToHost);
-
-	for (int h = 0; h < num_heads; h++) {
-		printf("head: %d\n", h);
-		for (int i = 0; i < num_indices; i++) {
-			printf("index: %d\n", i);
-			for (int j = 0; j < num_points; j++) {
-				printf("%d ", h_data[j + i * num_points + h * num_points * num_indices].value);
-			}
-			printf("\n");
-		}
-		printf("head: %d\n", h);
-	}
-
-	cudaFree(h_data);
-
-	printf("\n");
-	/*testing*/
-
 	/* Synchronize the threads */
 	cudaDeviceSynchronize();
 
@@ -602,31 +577,37 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 					int cur_index = position + threadIdx.x;
 					// check whether the current thread pointing index is within range
 					if (cur_index >= 0 && cur_index < num_points_in_block) {
+
+						// cur_point the current point id given the multiple head
 						int cur_point = dci_inst->indices[cur_index
 								+ i * (dci_inst->num_points)
 								+ blockIdx.x * points_per_block
 								+ head * num_indices * (dci_inst->num_points)].value;
-						counts[cur_point + m * (dci_inst->num_points)]++;
-						if (counts[cur_point + m * (dci_inst->num_points)]
+
+						// cur_point the current point id given the single head
+						// for each time it only work on single head
+						int cur_head_point = cur_point % (dci_inst->num_points);
+
+						counts[cur_head_point + m * (dci_inst->num_points)]++;
+						if (counts[cur_head_point + m * (dci_inst->num_points)]
 								== dci_inst->num_simp_indices) {
 							// add offset to candidate_dists
-							if (candidate_dists[cur_point] == -2.0) {
+							if (candidate_dists[cur_head_point] == -2.0) {
 								if (query_config.blind) {
-									candidate_dists[cur_point] = -1.0;
+									candidate_dists[cur_head_point] = -1.0;
 									// lock
 									all_candidates[num_candidates
 											+ blockIdx.x
 													* max_possible_num_candidates] =
-											cur_point;
+											cur_head_point;
 									num_candidates++;
 								} else {
 									// Compute distance
 									cur_dist = compute_dist_device(
-											&(dci_inst->data[cur_point * dci_inst->dim
-													+  head * (dci_inst->num_points) * (dci_inst->dim)]), 
+											&(dci_inst->data[cur_point * dci_inst->dim]), 
 													query,
 											dci_inst->dim);
-									candidate_dists[cur_point] = cur_dist;
+									candidate_dists[cur_head_point] = cur_dist;
 									if (num_candidates < num_neighbours) {
 										d_top_candidates_dist[blockIdx.x
 												* num_neighbours
@@ -672,7 +653,7 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 								}
 							} else {
 								if (!query_config.blind) {
-									cur_dist = candidate_dists[cur_point];
+									cur_dist = candidate_dists[cur_head_point];
 								}
 							}
 						}
@@ -850,7 +831,8 @@ __global__ void init_candidates(idx_elem* const candidate_map, const int total,
 }
 
 __global__ void get_blind_candidate_count(idx_elem* const candidate_map,
-		int* const d_all_candidates, const int total) {
+		int* const d_all_candidates, const int total, const int head
+		const int num_points) {
 	int idx, i = blockDim.x * blockIdx.x + threadIdx.x;
 	int chunk_size = (total + blockDim.x * gridDim.x - 1)
 			/ (blockDim.x * gridDim.x);
@@ -861,7 +843,7 @@ __global__ void get_blind_candidate_count(idx_elem* const candidate_map,
 		if (idx < total) {
 			candidate_map[d_all_candidates[idx]].key--;
 			candidate_map[d_all_candidates[idx]].value =
-					d_all_candidates[idx];
+					d_all_candidates[idx] + (head * num_points);
 		}
 	}
 }
@@ -871,7 +853,7 @@ __global__ void get_blind_candidate_count(idx_elem* const candidate_map,
  */
 void get_top_blind_candidates(int* const nearest_neighbours,
 		int* const d_all_candidates, const int max_possible_num_candidates,
-		const int total) {
+		const int total, const int head, const int num_points) {
 	int i;
 	idx_elem* candidate_map;
 	cudaMallocManaged((void **) (&candidate_map),
@@ -881,7 +863,8 @@ void get_top_blind_candidates(int* const nearest_neighbours,
 	init_candidates<<<block_size, thread_size>>>(candidate_map, total, 0);
 	// synch all blocks
 	cudaDeviceSynchronize();
-	get_blind_candidate_count<<<block_size, thread_size>>>(candidate_map, d_all_candidates, total);
+	get_blind_candidate_count<<<block_size, thread_size>>>(candidate_map, 
+		d_all_candidates, total, head, num_points);
 	// synch all blocks
 	cudaDeviceSynchronize();
 	mix_sort_kernel<<<1, 1>>>(candidate_map, total);
@@ -1028,7 +1011,8 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 						&(nearest_neighbours[j * max_possible_num_candidates + i * num_queries * num_neighbours]),
 						d_all_candidates, 
 						max_possible_num_candidates,
-						block_size * max_possible_num_candidates);
+						block_size * max_possible_num_candidates,
+						i, dci_inst->num_points);
 			}
 
 			/*testing*/
