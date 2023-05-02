@@ -530,7 +530,6 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 		for (int var = 0; var < num_indices; var++) {
 			printf("%f ", index_priority[var]);
 		}
-		printf("/n");
 		// testing
 
 		/* Synchronize the threads */
