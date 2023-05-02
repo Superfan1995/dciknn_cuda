@@ -33,16 +33,18 @@ def main():
     assert torch.cuda.is_available()
     device = torch.device('cuda:1')
 
+    print("head = 1\n")
+
     #############################################################################################################################################
     #                                                                                                                                           #
     # Data Generation Hyperparameters                                                                                                           #
     #                                                                                                                                           #
     #############################################################################################################################################
     dim = 100
-    #num_pts = 3000
-    num_pts = 300
-    #num_queries = 500
-    num_queries = 10
+    num_pts = 3000
+    #num_pts = 300
+    num_queries = 500
+    #num_queries = 10
     num_heads = 2
     # dim = 80
     # num_pts = 1000

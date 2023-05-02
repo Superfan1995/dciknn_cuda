@@ -162,8 +162,10 @@ __global__ void copy_to_indices(dci* const dci_inst, const int num_heads,
 	for (int j = 0; j < chunk_size; j++) {
 		idx = i * chunk_size + j;
 		if (idx < n) {
+			// idx % num_points: the index of the data points (for a single head!)
+			int head = (int) (idx / (num_indices * num_points));
 			dci_inst->indices[idx].key = data_proj[idx];
-			dci_inst->indices[idx].value = idx % num_points;
+			dci_inst->indices[idx].value = (idx % num_points) + (head * num_points);
 		}
 	}
 }
@@ -241,6 +243,28 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 	/* Add to indices */
 	copy_to_indices	<<<block_size, thread_size>>>(dci_inst, num_heads, data_proj, num_indices, num_points);
 
+	/*print result - testing*/
+	int data_size = sizeof(idx_elem) * num_heads * num_points * num_indices;
+	idx_elem* h_data = (idx_elem *) malloc(data_size);
+	cudaMemcpy(h_data, dci_inst->indices, data_size, cudaMemcpyDeviceToHost);
+
+	for (int h = 0; h < num_heads; h++) {
+		printf("head: %d\n", h);
+		for (int i = 0; i < num_indices; i++) {
+			printf("index: %d\n", i);
+			for (int j = 0; j < num_points; j++) {
+				printf("%d ", h_data[j + i * num_points + h * num_points * num_indices].value);
+			}
+			printf("\n");
+		}
+		printf("head: %d\n", h);
+	}
+
+	cudaFree(h_data);
+
+	printf("\n");
+	/*testing*/
+
 	/* Synchronize the threads */
 	cudaDeviceSynchronize();
 
@@ -251,6 +275,23 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 
 	/* Synchronize the threads */
 	cudaDeviceSynchronize();
+
+	/*print result - testing*/
+	int data_size = sizeof(idx_elem) * num_heads * num_points * num_indices;
+	idx_elem* h_data = (idx_elem *) malloc(data_size);
+	cudaMemcpy(h_data, dci_inst->indices, data_size, cudaMemcpyDeviceToHost);
+
+	int h = 0;
+	int i = 19;
+	for (int j = 0; j < num_points; j++) {
+		printf("%f ", h_data[j + i * num_points + h * num_points * num_indices].key);
+		printf("%d\n", h_data[j + i * num_points + h * num_points * num_indices].value);
+	}
+
+	cudaFree(h_data);
+
+	printf("\n");
+	/*testing*/
 
 	cudaFree(data_proj);
 }
