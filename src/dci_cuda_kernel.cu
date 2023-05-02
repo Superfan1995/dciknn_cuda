@@ -254,19 +254,23 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 	cudaDeviceSynchronize();
 
 	/*print result - testing*/
+
 	int data_size = sizeof(idx_elem) * num_heads * num_points * num_indices;
 	idx_elem* h_data = (idx_elem *) malloc(data_size);
 	cudaMemcpy(h_data, dci_inst->indices, data_size, cudaMemcpyDeviceToHost);
 
-	int h = 0;
-	int i = 19;
-	for (int j = 0; j < num_points; j++) {
-		printf("%f ", h_data[j + i * num_points + h * num_points * num_indices].key);
-		printf("%d\n", h_data[j + i * num_points + h * num_points * num_indices].value);
+	for (int h = 0; h < num_heads; h++) {
+		printf("head: %d\n", h);
+		for (int i = 0; i < num_indices; i++) {
+			printf("index: %d\n", i);
+			for (int j = 0; j < num_points; j++) {
+				printf("%d ", h_data[j + i * num_points + h * num_points * num_indices].value);
+			}
+			printf("\n");
+		}
+		printf("head: %d\n", h);
 	}
-
 	cudaFree(h_data);
-
 	printf("\n");
 	/*testing*/
 
