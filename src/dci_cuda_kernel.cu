@@ -197,10 +197,6 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 	//	cudaDeviceSynchronize();
 	//}
 
-	//matmul_device(const cublasOperation_t op_A, const cublasOperation_t op_B,
-    //	const int M, const int N, const int K, const float* const A, const float* 
-	//	const B, float* const C, int &devID)
-
     // setup execution parameters
     //dim3 threads(block_size, block_size);
     //dim3 grid(N / threads.x, M / threads.y);
@@ -252,28 +248,6 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 
 	/* Synchronize the threads */
 	cudaDeviceSynchronize();
-
-	/*print result - testing*/
-	/*
-	int data_size = sizeof(idx_elem) * num_heads * num_points * num_indices;
-	idx_elem* h_data = (idx_elem *) malloc(data_size);
-	cudaMemcpy(h_data, dci_inst->indices, data_size, cudaMemcpyDeviceToHost);
-
-	for (int h = 0; h < num_heads; h++) {
-		printf("head: %d\n", h);
-		for (int i = 0; i < num_indices; i++) {
-			printf("index: %d\n", i);
-			for (int j = 0; j < num_points; j++) {
-				printf("%d ", h_data[j + i * num_points + h * num_points * num_indices].value);
-			}
-			printf("\n");
-		}
-		printf("head: %d\n", h);
-	}
-	cudaFree(h_data);
-	printf("\n");
-	*/
-	/*testing*/
 
 	cudaFree(data_proj);
 }
