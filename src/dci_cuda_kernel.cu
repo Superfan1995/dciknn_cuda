@@ -980,6 +980,7 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 				);
 
 			/*print result - testing*/
+			/*
 			int data_size = sizeof(int) * dci_inst->num_points * dci_inst->num_comp_indices;
 			int *h_data = (int *) malloc(data_size);
 			cudaMemcpy(h_data, counts, data_size, cudaMemcpyDeviceToHost);
@@ -993,6 +994,7 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 			printf("head: %d, query: %d\n", i, j);
 
 			cudaFree(h_data);
+			*/
 			/*testing*/
 
 			cudaDeviceSynchronize();
