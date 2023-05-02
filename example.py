@@ -104,6 +104,7 @@ def main():
         dci_db.clear()
         #b = datetime.datetime.now()
         #print(b-a) 
+        break
 
 if __name__ == '__main__':
     main()
