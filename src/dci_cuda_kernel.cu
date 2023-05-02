@@ -378,8 +378,7 @@ __device__ void search_index(const dci* const dci_inst,
 			left_pos[idx] = dci_search_index(
 					&(dci_inst->indices[idx * (dci_inst->num_points)
 							+ blockIdx.x * points_per_block
-							+ head * num_indices * (dci_inst->num_points)
-						]),
+							+ head * num_indices * (dci_inst->num_points)]),
 					query_proj[idx],
 					min(dci_inst->num_points - blockIdx.x * points_per_block,
 							points_per_block)) - blockDim.x + 1;
@@ -520,20 +519,19 @@ static void dci_query_single_point_by_block(const dci* const dci_inst,
 		/* Search index */
 		search_index(dci_inst, query_proj, head, num_indices, left_pos, right_pos, points_per_block);
 
-		// testing
-		for (int var = 0; var < num_indices; var++) {
-		//	//cuPrintf("%d ", left_pos[var]);
-			printf("%d ", left_pos[var]);
-		}
-		printf("\n");
-		//testing
-
 		/* Synchronize the threads */
 		__syncthreads();
 
 		/* Populate the closest indices */
 		init_index_priority(dci_inst, query_proj, head, num_indices, left_pos, right_pos,
 				index_priority, cur_pos, points_per_block);
+
+		// testing
+		for (int var = 0; var < num_indices; var++) {
+			printf("%f ", index_priority[var]);
+		}
+		printf("/n")
+		// testing
 
 		/* Synchronize the threads */
 		__syncthreads();
