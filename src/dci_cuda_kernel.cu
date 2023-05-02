@@ -956,13 +956,15 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 				);
 
 			/*print result - testing*/
-			int data_size = sizeof(float) * num_neighbours * block_size * thread_size;
-			float *h_data = (float *) malloc(data_size);
-			cudaMemcpy(h_data, candidate_dists, data_size, cudaMemcpyDeviceToHost);
+			int data_size = sizeof(int) * dci_inst->num_points * dci_inst->num_comp_indices;
+			int *h_data = (int *) malloc(data_size);
+			cudaMemcpy(h_data, counts, data_size, cudaMemcpyDeviceToHost);
 
 			printf("head: %d, query: %d\n", i, j);
-			for (int a1 = 0; a1 < dci_inst->num_points; a1++) {
-				printf("%f ", h_data[a1]);
+			for (int a1 = 0; a1 < dci_inst->num_comp_indices; a1++) {
+				for (int a2 = 0; a2 < dci_inst->num_points; a2++) {
+					printf("%f ", h_data[a1 * dci_inst->num_points + a2]);
+				}
 			}
 			printf("head: %d, query: %d\n", i, j);
 
