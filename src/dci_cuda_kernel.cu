@@ -831,7 +831,7 @@ __global__ void init_candidates(idx_elem* const candidate_map, const int total,
 }
 
 __global__ void get_blind_candidate_count(idx_elem* const candidate_map,
-		int* const d_all_candidates, const int total, const int head
+		int* const d_all_candidates, const int total, const int head,
 		const int num_points) {
 	int idx, i = blockDim.x * blockIdx.x + threadIdx.x;
 	int chunk_size = (total + blockDim.x * gridDim.x - 1)
