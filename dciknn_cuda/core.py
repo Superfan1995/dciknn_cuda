@@ -76,6 +76,14 @@ class DCI(object):
             raise RuntimeError("DCI class does not support insertion of more than one tensor. Must combine all tensors into one tensor before inserting")
         self._check_data(data)
         self.num_points = (int) (data.shape[0] / self._num_heads)
+
+        print("each num_heads")
+        print(self._num_heads)
+        print("each num_points")
+        print(self.num_points)
+        print("each data_size")
+        print(len(data.flatten()))
+
         _dci_add(self._dci_inst, self._num_heads, self._dim, self.num_points, data.flatten(), self._block_size, self._thread_size)
         self._array = data
     
@@ -120,12 +128,12 @@ class MDCI(object):
         # if len(devices) < 2:
         #     raise RuntimeError("You should specify at least two GPU for multi-GPU DCI to work")
 
-        self._num_heads = num_heads
         self._dim = dim
+        self._num_heads = num_heads
         self._num_comp_indices = num_comp_indices
         self._num_simp_indices = num_simp_indices
-        self._bs = bs
-        self._ts = ts
+        self._block_size = bs
+        self._thread_size = ts
 
         self.devices = devices
         self.num_devices = len(devices)
@@ -139,22 +147,20 @@ class MDCI(object):
     def add(self, data):
 
         if (self._num_heads == 1):
-            self.dcis = [DCI(self._num_heads, self._dim, self._num_comp_indices, self._num_simp_indices, self._bs, self._ts, dev) for dev in self.devices]
+            self.dcis = [DCI(self._num_heads, self._dim, self._num_comp_indices, self._num_simp_indices, self._block_size, self._thread_size, dev) for dev in self.devices]
             
             #self.data_per_device = data.shape[0] // self.num_devices + 1
             self.data_per_device = data.shape[0] // self.num_devices
-
-            print(data)
-
             for dev_ind in range(self.num_devices):
                 device = self.devices[dev_ind]
                 cur_data = data[dev_ind * self.data_per_device: dev_ind * self.data_per_device + self.data_per_device].to(device)
-                self.dcis[dev_ind].add(cur_data)
 
-                print("data size")
+                print("multi data size")
                 print(len(data))
-                print("input data size")
+                print("multi input data size")
                 print(len(cur_data))
+
+                self.dcis[dev_ind].add(cur_data)
 
         else:
             self.head_per_device = self._num_heads // self.num_devices
@@ -198,10 +204,12 @@ class MDCI(object):
             print("num_queries")
             print(num_queries)
             print("queries size")
+            print(len(queries))
+            print("queries shape")
             for i in range(2):
                 print(queries[i].shape)
 
-            #res = _dci_multi_query([dc._dci_inst for dc in self.dcis], self.dcis[0]._num_heads, self.dcis[0]._dim, num_queries, queries, num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
+            #res = _dci_multi_query([dc._dci_inst for dc in self.dcis], self.dcis[i]._num_heads, self.dcis[i]._dim, num_queries, queries, num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[i]._block_size, self.dcis[i]._thread_size)
 
             # test 
             print("finsih query")
