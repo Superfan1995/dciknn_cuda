@@ -77,12 +77,15 @@ class DCI(object):
         self._check_data(data)
         self.num_points = (int) (data.shape[0] / self._num_heads)
 
-        print("each num_heads")
+        print("each data input")
         print(self._num_heads)
-        print("each num_points")
+        print(self._dim)
         print(self.num_points)
-        print("each data_size")
+        print(self.num_points)
+        print(self._block_size)
+        print(self._thread_size)
         print(len(data.flatten()))
+        print("\n")
 
         _dci_add(self._dci_inst, self._num_heads, self._dim, self.num_points, data.flatten(), self._block_size, self._thread_size)
         self._array = data
@@ -102,6 +105,11 @@ class DCI(object):
 
         num_queries = (int) (_query.shape[0] / self._num_heads)
         _query_result = _dci_query(self._dci_inst, self._num_heads, self._dim, num_queries, _query.flatten(), num_neighbours, blind, num_outer_iterations, max_num_candidates, self._block_size, self._thread_size)
+
+        #print("single num_queries")
+        #print(num_queries)
+        #print("queries flatten size")
+        #print(len(_query.flatten()))
 
         half = _query_result.shape[0] // 2
         return _query_result[:half].reshape(_query.shape[0], -1), _query_result[half:].reshape(_query.shape[0], -1)
@@ -155,12 +163,18 @@ class MDCI(object):
                 device = self.devices[dev_ind]
                 cur_data = data[dev_ind * self.data_per_device: dev_ind * self.data_per_device + self.data_per_device].to(device)
 
+                print("dev_ind")
+                print(dev_ind)
+                print("dci size")
+                print(len(self.dcis))
                 print("multi data size")
                 print(len(data))
                 print("multi input data size")
                 print(len(cur_data))
 
                 self.dcis[dev_ind].add(cur_data)
+
+            print("\n")
 
         else:
             self.head_per_device = self._num_heads // self.num_devices
