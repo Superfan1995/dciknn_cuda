@@ -149,7 +149,7 @@ class MDCI(object):
         else:
             self.head_per_device = self._num_heads // self.num_devices
             # number of data points in a single head
-            self.num_points = (int) (data.shape[0] / self._num_heads)
+            self.num_points = data.shape[0] // self._num_heads
             for dev_ind in range(self.num_devices):
                 # number of head assign to current device
                 num_heads_device = min(self.head_per_device, self._num_heads - dev_ind * self.head_per_device)
@@ -177,7 +177,7 @@ class MDCI(object):
 
         max_num_candidates = 10 * num_neighbours
 
-        num_queries = _query.shape[0] / self.dcis[0]._num_heads
+        num_queries = _query.shape[0] // self.dcis[0]._num_heads
         if (self._num_heads == 1):
             queries = [_query.to(self.devices[dev_ind]).flatten() for dev_ind in self.devices]
             res = _dci_multi_query([dc._dci_inst for dc in self.dcis], self.dcis[0]._num_heads, self.dcis[0]._dim, num_queries, queries, num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
