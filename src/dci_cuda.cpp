@@ -136,6 +136,22 @@ std::vector<torch::Tensor> py_dci_multi_query(std::vector<py::handle> py_dci_ins
     return results;
 }
 
+std::vector<torch::Tensor> py_dci_multi_head_query(std::vector<py::handle> py_dci_inst_wrapper, 
+    std::vector<int> head_per_device, const int dim, const int num_queries, std::vector<torch::Tensor> py_query, 
+    const int num_neighbours, const bool blind, const int num_outer_iterations, const int max_num_candidates, 
+    const int block_size, const int thread_size) {
+    std::vector<torch::Tensor> results;
+    std::vector<std::future<torch::Tensor>> calcs;
+    for (unsigned int i = 0; i < py_query.size(); i++) {
+        calcs.push_back(std::async(py_dci_query, py_dci_inst_wrapper[i], head_per_device[i], dim, num_queries,
+            py_query[i], num_neighbours, blind, num_outer_iterations, max_num_candidates, block_size, thread_size));
+    }
+    for (unsigned int i = 0; i < py_query.size(); i++) {
+        results.push_back(calcs[i].get());
+    }
+    return results;
+}
+
 void py_dci_clear(py::handle py_dci_inst_wrapper) {
     PyObject *py_obj = py_dci_inst_wrapper.ptr();
     py_dci *py_dci_inst = (py_dci *)PyCapsule_GetPointer(py_obj, "py_dci_inst");
@@ -183,4 +199,5 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("_dci_reset", &py_dci_reset, "Reset DCI. (CUDA)");
     m.def("_dci_free", &py_dci_free, "Free DCI. (CUDA)");
     m.def("_dci_multi_query", &py_dci_multi_query, "Search for nearest neighbours with multiple GPUs. (CUDA)");
+    m.def("_dci_multi_head_query", &py_dci_multi_head_query, "Search for multi-attention head nearest neighbours with multiple GPUs. (CUDA)");
 }

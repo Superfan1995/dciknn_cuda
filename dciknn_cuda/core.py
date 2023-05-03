@@ -16,7 +16,7 @@ Copyright (C) 2020    Ke Li, Shichong Peng, Mehran Aghabozorgi
 '''
 
 import torch
-from _dci_cuda import _dci_new, _dci_add, _dci_query, _dci_clear, _dci_reset, _dci_free, _dci_multi_query
+from _dci_cuda import _dci_new, _dci_add, _dci_query, _dci_clear, _dci_reset, _dci_free, _dci_multi_query, _dci_multi_head_query
 # from _dci_cuda import _dci_new, _dci_add, _dci_query, _dci_clear, _dci_reset, _dci_free
 
 from math import sqrt
@@ -71,7 +71,7 @@ class DCI(object):
         if not arr.is_cuda:
             raise TypeError("tensor must be a cuda tensor")
 
-    def add(self, data):
+    def add(self, data, ):
         if self.num_points > 0:
             raise RuntimeError("DCI class does not support insertion of more than one tensor. Must combine all tensors into one tensor before inserting")
         self._check_data(data)
@@ -120,19 +120,49 @@ class MDCI(object):
         # if len(devices) < 2:
         #     raise RuntimeError("You should specify at least two GPU for multi-GPU DCI to work")
         
+        self._num_heads = num_heads
+        self._dim = dim
+        self._num_comp_indices = num_comp_indices
+        self._num_simp_indices = num_simp_indices
+        self._bs = bs
+        self._ts = ts
+
         self.devices = devices
         self.num_devices = len(devices)
-        self.dcis = [DCI(num_heads, dim, num_comp_indices, num_simp_indices, bs, ts, dev) for dev in devices]
-        self.data_per_device = 0
+        self.dcis = []
+        self.data_per_device = 0 # the number of data points assign to each device (note: for single head situation)
+        self.head_per_device = 0 # the number of head assign to each device
+        self.head_per_device_list = []
+        self.num_points = 0
     
     # need consider the number of points
-    def add(self, data, num_points):
-        self.data_per_device = data.shape[0] // self.num_devices + 1
-        for dev_ind in range(self.num_devices):
-            device = self.devices[dev_ind]
-            cur_data = data[dev_ind * self.data_per_device: dev_ind * self.data_per_device + self.data_per_device].to(device)
-            self.dcis[dev_ind].add(cur_data, num_points)
-        
+    def add(self, data):
+
+        self.head_per_device = self._num_heads // self.num_devices + 1
+        if (self.head_per_device == 1):
+            self.dcis = [DCI(self._num_heads, self._dim, self._num_comp_indices, self._num_simp_indices, self._bs, self._ts, dev) for dev in self.devices]
+            self.data_per_device = data.shape[0] // self.num_devices + 1
+            for dev_ind in range(self.num_devices):
+                device = self.devices[dev_ind]
+                cur_data = data[dev_ind * self.data_per_device: dev_ind * self.data_per_device + self.data_per_device].to(device)
+                self.dcis[dev_ind].add(cur_data)
+
+        else:
+            # number of data points in a single head
+            self.num_points = (int) (data.shape[0] / self._num_heads)
+            for dev_ind in range(self.num_devices):
+                # number of head assign to current device
+                num_heads_device = min(self.head_per_device, self._num_heads - dev_ind * self.head_per_device)
+                num_points_device = num_heads_device * self.num_points
+                self.head_per_device_list.append(num_heads_device)
+                
+                device = self.devices[dev_ind]
+                cur_data = data[dev_ind * self.head_per_device * self.num_points: dev_ind * self.head_per_device * self.num_points + num_points_device].to(device)
+
+                new_dci = DCI(num_heads_device, self._dim, self._num_comp_indices, self._num_simp_indices, self._bs, self._ts, device)
+                (self.dcis).append(new_dci)
+                self.dcis[dev_ind].add(cur_data)
+
     def query(self, query, num_neighbours=-1, num_outer_iterations=5000, blind=False):
         dists = []
         nns = []
@@ -148,15 +178,31 @@ class MDCI(object):
         max_num_candidates = 10 * num_neighbours
 
         num_queries = _query.shape[0] / self.dcis[0]._num_heads
-        queries = [_query.to(self.devices[dev_ind]).flatten() for dev_ind in self.devices]
-        res = _dci_multi_query([dc._dci_inst for dc in self.dcis], self.dcis[0]._num_heads, self.dcis[0]._dim, num_queries, queries, num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
+        if (self.head_per_device == 1):
+            queries = [_query.to(self.devices[dev_ind]).flatten() for dev_ind in self.devices]
+            res = _dci_multi_query([dc._dci_inst for dc in self.dcis], self.dcis[0]._num_heads, self.dcis[0]._dim, num_queries, queries, num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
 
-        for ind, cur_res in enumerate(res):
-            half = cur_res.shape[0] // 2
-            cur_nns, cur_dist = cur_res[:half].reshape(num_queries, -1), cur_res[half:].reshape(num_queries, -1)
-            cur_nns = cur_nns + self.data_per_device * ind
-            dists.append(cur_dist.detach().clone().to(self.devices[0]))
-            nns.append(cur_nns.detach().clone().to(self.devices[0]))
+            for ind, cur_res in enumerate(res):
+                half = cur_res.shape[0] // 2
+                cur_nns, cur_dist = cur_res[:half].reshape(num_queries, -1), cur_res[half:].reshape(num_queries, -1)
+                cur_nns = cur_nns + self.data_per_device * ind
+                dists.append(cur_dist.detach().clone().to(self.devices[0]))
+                nns.append(cur_nns.detach().clone().to(self.devices[0]))
+
+        else:
+            queries = []
+            for dev_ind in range(self.num_devices):
+                cur_query = query[dev_ind * num_queries * self.head_per_device: dev_ind * num_queries * self.head_per_device + num_queries * self.head_per_device_list[dev_ind], :]
+                queries.append(cur_query.to(self.devices[dev_ind]).flatten())
+            res = _dci_multi_head_query([dc._dci_inst for dc in self.dcis], self.head_per_device_list, self.dcis[0]._dim, num_queries, queries, num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
+
+            for ind, cur_res in enumerate(res):
+                half = cur_res.shape[0] // 2
+                cur_num_queries = self.head_per_device_list[ind] * num_queries
+                cur_nns, cur_dist = cur_res[:half].reshape(cur_num_queries, -1), cur_res[half:].reshape(cur_num_queries, -1)
+                cur_nns = cur_nns + self.head_per_device * self.num_points * ind
+                dists.append(cur_dist.detach().clone().to(self.devices[0]))
+                nns.append(cur_nns.detach().clone().to(self.devices[0]))
 
         merged_dists = torch.cat(dists, dim=1)
         merged_nns = torch.cat(nns, dim=1)
