@@ -140,11 +140,28 @@ class MDCI(object):
 
         if (self._num_heads == 1):
             self.dcis = [DCI(self._num_heads, self._dim, self._num_comp_indices, self._num_simp_indices, self._bs, self._ts, dev) for dev in self.devices]
+
+            # test *2
+            print("num_heads")            
+            print(self._num_heads)
+            
             self.data_per_device = data.shape[0] // self.num_devices + 1
+
+            # test * 3
+            print("self.data_per_device:")
+            print(self.data_per_device)
+            print("\n")
+
             for dev_ind in range(self.num_devices):
                 device = self.devices[dev_ind]
                 cur_data = data[dev_ind * self.data_per_device: dev_ind * self.data_per_device + self.data_per_device].to(device)
                 self.dcis[dev_ind].add(cur_data)
+
+                # test * 4
+                print("start - end")
+                print(dev_ind)
+                print(dev_ind * self.data_per_device)
+                print(dev_ind * self.data_per_device + self.data_per_device)
 
         else:
             self.head_per_device = self._num_heads // self.num_devices
@@ -158,9 +175,6 @@ class MDCI(object):
                 num_heads_device = min(self.head_per_device, self._num_heads - dev_ind * self.head_per_device)
                 num_points_device = num_heads_device * self.num_points
                 self.head_per_device_list.append(num_heads_device)
-
-                print(num_heads_device)
-                print(num_points_device)
                 
                 device = self.devices[dev_ind]
                 cur_data = data[dev_ind * self.head_per_device * self.num_points: dev_ind * self.head_per_device * self.num_points + num_points_device].to(device)
