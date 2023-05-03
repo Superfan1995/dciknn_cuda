@@ -71,7 +71,7 @@ class DCI(object):
         if not arr.is_cuda:
             raise TypeError("tensor must be a cuda tensor")
 
-    def add(self, data, ):
+    def add(self, data):
         if self.num_points > 0:
             raise RuntimeError("DCI class does not support insertion of more than one tensor. Must combine all tensors into one tensor before inserting")
         self._check_data(data)
@@ -138,8 +138,7 @@ class MDCI(object):
     # need consider the number of points
     def add(self, data):
 
-        self.head_per_device = self._num_heads // self.num_devices + 1
-        if (self.head_per_device == 1):
+        if (self._num_heads == 1):
             self.dcis = [DCI(self._num_heads, self._dim, self._num_comp_indices, self._num_simp_indices, self._bs, self._ts, dev) for dev in self.devices]
             self.data_per_device = data.shape[0] // self.num_devices + 1
             for dev_ind in range(self.num_devices):
@@ -148,6 +147,7 @@ class MDCI(object):
                 self.dcis[dev_ind].add(cur_data)
 
         else:
+            self.head_per_device = self._num_heads // self.num_devices
             # number of data points in a single head
             self.num_points = (int) (data.shape[0] / self._num_heads)
             for dev_ind in range(self.num_devices):
@@ -178,7 +178,7 @@ class MDCI(object):
         max_num_candidates = 10 * num_neighbours
 
         num_queries = _query.shape[0] / self.dcis[0]._num_heads
-        if (self.head_per_device == 1):
+        if (self._num_heads == 1):
             queries = [_query.to(self.devices[dev_ind]).flatten() for dev_ind in self.devices]
             res = _dci_multi_query([dc._dci_inst for dc in self.dcis], self.dcis[0]._num_heads, self.dcis[0]._dim, num_queries, queries, num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
 
