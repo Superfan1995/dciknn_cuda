@@ -194,9 +194,7 @@ class MDCI(object):
             for dev_ind in range(self.num_devices):
                 cur_query = query[dev_ind * num_queries * self.head_per_device: dev_ind * num_queries * self.head_per_device + num_queries * self.head_per_device_list[dev_ind], :]
                 queries.append(cur_query.to(self.devices[dev_ind]).flatten())
-            res = _dci_multi_head_query([dc._dci_inst for dc in self.dcis], [head_per_device for head_per_device in self.head_per_device_list], self.dcis[0]._dim, num_queries, [query for query in queries], num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
-
-            print("success query")
+            res = _dci_multi_head_query([dc._dci_inst for dc in self.dcis], [head_per_device for head_per_device in self.head_per_device_list], self.dcis[0]._dim, num_queries, [new_query for new_query in queries], num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
 
             for ind, cur_res in enumerate(res):
                 half = cur_res.shape[0] // 2
