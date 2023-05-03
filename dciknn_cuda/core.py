@@ -78,9 +78,6 @@ class DCI(object):
         self.num_points = (int) (data.shape[0] / self._num_heads)
         _dci_add(self._dci_inst, self._num_heads, self._dim, self.num_points, data.flatten(), self._block_size, self._thread_size)
         self._array = data
-
-        #print(data.flatten())
-        #print("\n")
     
     # query is num_queries x dim, returns num_queries x num_neighbours
     def query(self, query, num_neighbours=-1, num_outer_iterations=5000, blind=False):
@@ -187,17 +184,28 @@ class MDCI(object):
             queries = [_query.to(self.devices[dev_ind]).flatten() for dev_ind in self.devices]
 
             # test * 2
+            print("_query.shape[0]")
+            print(_query.shape[0])
+            print("_query.shape[1]")
+            print(_query.shape[1])
+            print("")
             print("self.dcis[0]._num_heads")
             print(self.dcis[0]._num_heads)
             print("self.dcis[0]._dim")
             print(self.dcis[0]._dim)
-            print("_query.shape[0]")
-            print(_query.shape[0])
+            print("self.dcis[0].num_points")
+            print(self.dcis[0].num_points)
+            print("")
+            print("self.dcis[1]._num_heads")
+            print(self.dcis[1]._num_heads)
+            print("self.dcis[1]._dim")
+            print(self.dcis[1]._dim)
+            print("self.dcis[0].num_points")
+            print(self.dcis[0].num_points)
+            print("")
+            print("")
 
-            res = _dci_multi_query([dc._dci_inst for dc in self.dcis], self.dcis[0]._num_heads, self.dcis[0]._dim, _query.shape[0], queries, num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
-
-            # test 
-            print("finsih query")
+            #res = _dci_multi_query([dc._dci_inst for dc in self.dcis], self.dcis[0]._num_heads, self.dcis[0]._dim, _query.shape[0], queries, num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
 
             #for ind, cur_res in enumerate(res):
             #    half = cur_res.shape[0] // 2

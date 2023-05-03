@@ -43,7 +43,7 @@ def main():
     num_queries = 500
     #num_pts = 1000 # 3000
     #num_queries = 100 #500
-    num_heads = 4
+    num_heads = 1
     # dim = 80
     # num_pts = 1000
     # num_queries = 100
@@ -72,7 +72,6 @@ def main():
     # initialize the DCI instance
     for i in range(2):
 
-        '''
         data = data_and_queries[:(num_pts*num_heads), :].detach().clone().to(device)
         query = data_and_queries[(num_pts*num_heads):, :].detach().clone().to(device)
 
@@ -81,15 +80,15 @@ def main():
 
         dci_db.add(data)
         # Query
-        #dci_db.query(query, num_queries, num_neighbours, num_outer_iterations)
+        dci_db.query(query, num_queries, num_neighbours, num_outer_iterations)
         #indices, dists = dci_db.query(query, num_queries, num_neighbours, num_outer_iterations)
         #print("Nearest Indices:", indices)
         #print("Indices Distances:", dists)
         dci_db.clear()
         b = datetime.datetime.now()
         print(b-a)
-        '''
 
+        '''
         data = data_and_queries[:(num_pts*num_heads), :].detach().clone().to(0)
         query = data_and_queries[(num_pts*num_heads):, :].detach().clone().to(0)
        
@@ -104,6 +103,7 @@ def main():
         dci_db.clear()
         b = datetime.datetime.now()
         print(b-a) 
+        '''
 
 if __name__ == '__main__':
     main()
