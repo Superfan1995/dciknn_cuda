@@ -119,7 +119,7 @@ class MDCI(object):
     def __init__(self, num_heads, dim, num_comp_indices=2, num_simp_indices=7, bs=100, ts=10, devices=[0]):
         # if len(devices) < 2:
         #     raise RuntimeError("You should specify at least two GPU for multi-GPU DCI to work")
-        
+
         self._num_heads = num_heads
         self._dim = dim
         self._num_comp_indices = num_comp_indices
@@ -150,11 +150,17 @@ class MDCI(object):
             self.head_per_device = self._num_heads // self.num_devices
             # number of data points in a single head
             self.num_points = data.shape[0] // self._num_heads
+
+            print(self.num_points)
+
             for dev_ind in range(self.num_devices):
                 # number of head assign to current device
                 num_heads_device = min(self.head_per_device, self._num_heads - dev_ind * self.head_per_device)
                 num_points_device = num_heads_device * self.num_points
                 self.head_per_device_list.append(num_heads_device)
+
+                print(num_heads_device)
+                print(num_points_device)
                 
                 device = self.devices[dev_ind]
                 cur_data = data[dev_ind * self.head_per_device * self.num_points: dev_ind * self.head_per_device * self.num_points + num_points_device].to(device)
@@ -194,8 +200,6 @@ class MDCI(object):
             for dev_ind in range(self.num_devices):
                 cur_query = query[dev_ind * num_queries * self.head_per_device: dev_ind * num_queries * self.head_per_device + num_queries * self.head_per_device_list[dev_ind], :]
                 queries.append(cur_query.to(self.devices[dev_ind]).flatten())
-            
-            print("query append success")
             
             res = _dci_multi_head_query([dc._dci_inst for dc in self.dcis], [head_per_device for head_per_device in self.head_per_device_list], self.dcis[0]._dim, num_queries, [new_query for new_query in queries], num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
 
