@@ -88,7 +88,7 @@ torch::Tensor py_dci_query(py::handle py_dci_inst_wrapper, const int num_heads, 
     const int thread_size) {
     const at::cuda::OptionalCUDAGuard device_guard(device_of(py_query));
 
-    printf("py_dci_query\n");
+    //printf("py_dci_query\n");
 
     PyObject *py_obj = py_dci_inst_wrapper.ptr();
     py_dci *py_dci_inst = (py_dci *)PyCapsule_GetPointer(py_obj, "py_dci_inst");
@@ -105,13 +105,13 @@ torch::Tensor py_dci_query(py::handle py_dci_inst_wrapper, const int num_heads, 
     cudaMalloc((void **) &(final_outputs), sizeof(int) * output_size);
     cudaMalloc((void **) &(final_distances), sizeof(float) * output_size);
 
-    printf("num_head: %d, num_queries: %d\n", num_heads, num_queries);
+    //printf("num_head: %d, num_queries: %d\n", num_heads, num_queries);
 
     // query using DCI
     dci_query(&(py_dci_inst->dci_inst), num_heads, dim, num_queries, query, num_neighbours,
       query_config, final_outputs, final_distances, block_size, thread_size);
 
-    printf("query_success\n");
+    //printf("query_success\n");
 
     auto options = torch::TensorOptions().device(torch::kCUDA);
     auto new_options = torch::TensorOptions().dtype(torch::kInt32).device(torch::kCUDA);
@@ -149,12 +149,12 @@ std::vector<torch::Tensor> py_dci_multi_head_query(std::vector<py::handle> py_dc
     std::vector<torch::Tensor> results;
     std::vector<std::future<torch::Tensor>> calcs;
 
-    printf("Multi head query dci_cuda\n");
-    printf("py_query size: %d\n", py_query.size());
-    for (int i = 0; i < py_query.size(); i++) {
-        printf("head %d\n", i);
-        printf("device head: %d\n", head_per_device[i]);
-    }
+    //printf("Multi head query dci_cuda\n");
+    //printf("py_query size: %d\n", py_query.size());
+    //for (int i = 0; i < py_query.size(); i++) {
+    //    printf("head %d\n", i);
+    //   printf("device head: %d\n", head_per_device[i]);
+    //}
     printf("\n");
 
     for (unsigned int i = 0; i < py_query.size(); i++) {

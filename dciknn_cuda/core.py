@@ -134,7 +134,7 @@ class MDCI(object):
         self.head_per_device = 0 # the number of head assign to each device
         self.head_per_device_list = []
         self.num_points = 0
-    
+
     # need consider the number of points
     def add(self, data):
 
@@ -197,10 +197,20 @@ class MDCI(object):
 
         max_num_candidates = 10 * num_neighbours
 
-        num_queries = _query.shape[0] // self._num_heads
+        num_queries = (int) (_query.shape[0] / self._num_heads)
         if (self._num_heads == 1):
             queries = [_query.to(self.devices[dev_ind]).flatten() for dev_ind in self.devices]
+
+            # test * 2
+            print("num_queries")
+            print(num_queries)
+            print("device query shape")
+            print(queries[0].shape())
+
             res = _dci_multi_query([dc._dci_inst for dc in self.dcis], self.dcis[0]._num_heads, self.dcis[0]._dim, num_queries, queries, num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
+
+            # test 
+            print("finsih query")
 
             for ind, cur_res in enumerate(res):
                 half = cur_res.shape[0] // 2
