@@ -155,7 +155,7 @@ std::vector<torch::Tensor> py_dci_multi_head_query(std::vector<py::handle> py_dc
     //    printf("head %d\n", i);
     //   printf("device head: %d\n", head_per_device[i]);
     //}
-    printf("\n");
+    //printf("\n");
 
     for (unsigned int i = 0; i < py_query.size(); i++) {
         calcs.push_back(std::async(py_dci_query, py_dci_inst_wrapper[i], head_per_device[i], dim, num_queries,
