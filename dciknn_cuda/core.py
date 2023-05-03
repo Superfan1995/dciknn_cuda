@@ -144,6 +144,8 @@ class MDCI(object):
             #self.data_per_device = data.shape[0] // self.num_devices + 1
             self.data_per_device = data.shape[0] // self.num_devices
 
+            print(data)
+
             for dev_ind in range(self.num_devices):
                 device = self.devices[dev_ind]
                 cur_data = data[dev_ind * self.data_per_device: dev_ind * self.data_per_device + self.data_per_device].to(device)
