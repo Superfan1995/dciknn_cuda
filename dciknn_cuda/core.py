@@ -145,7 +145,8 @@ class MDCI(object):
             print("num_heads")            
             print(self._num_heads)
             
-            self.data_per_device = data.shape[0] // self.num_devices + 1
+            #self.data_per_device = data.shape[0] // self.num_devices + 1
+            self.data_per_device = data.shape[0] // self.num_devices
 
             # test * 3
             print("self.data_per_device:")
@@ -208,7 +209,7 @@ class MDCI(object):
             print("num_queries")
             print(num_queries)
             print("queries size")
-            for i in range(self.devices):
+            for i in range(2):
                 print(queries[i].shape)
 
             #res = _dci_multi_query([dc._dci_inst for dc in self.dcis], self.dcis[0]._num_heads, self.dcis[0]._dim, num_queries, queries, num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
