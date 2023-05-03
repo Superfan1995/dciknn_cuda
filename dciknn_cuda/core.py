@@ -204,8 +204,6 @@ class MDCI(object):
             # test * 2
             print("num_queries")
             print(num_queries)
-            print("device query shape")
-            print(queries[0].shape())
 
             res = _dci_multi_query([dc._dci_inst for dc in self.dcis], self.dcis[0]._num_heads, self.dcis[0]._dim, num_queries, queries, num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
 
