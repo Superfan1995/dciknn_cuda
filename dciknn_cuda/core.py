@@ -162,7 +162,7 @@ class MDCI(object):
                 device = self.devices[dev_ind]
                 cur_data = data[dev_ind * self.head_per_device * self.num_points: dev_ind * self.head_per_device * self.num_points + num_points_device].to(device)
 
-                new_dci = DCI(num_heads_device, self._dim, self._num_comp_indices, self._num_simp_indices, self._bs, self._ts, device)
+                new_dci = DCI(num_heads_device, self._dim, self._num_comp_indices, self._num_simp_indices, self._block_size, self._thread_size, device)
                 (self.dcis).append(new_dci)
                 self.dcis[dev_ind].add(cur_data)
 
@@ -193,13 +193,13 @@ class MDCI(object):
                 nns.append(cur_nns.detach().clone().to(self.devices[0]))
 
         else:
-            num_queries = (int) (_query.shape[0] / self._num_heads)
+            num_queries = _query.shape[0] // self._num_heads
             queries = []
             for dev_ind in range(self.num_devices):
-                cur_query = query[dev_ind * num_queries * self.head_per_device: dev_ind * num_queries * self.head_per_device + num_queries * self.head_per_device_list[dev_ind], :]
+                cur_query = query[dev_ind * num_queries * self.head_per_device: dev_ind * num_queries * self.head_per_device + num_queries * self.head_per_device_list[dev_ind]]
                 queries.append(cur_query.to(self.devices[dev_ind]).flatten())
             
-            res = _dci_multi_head_query([dc._dci_inst for dc in self.dcis], [head_per_device for head_per_device in self.head_per_device_list], self.dcis[0]._dim, num_queries, [new_query for new_query in queries], num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
+            res = _dci_multi_head_query([dc._dci_inst for dc in self.dcis], self.head_per_device_list, self.dcis[0]._dim, num_queries, queries, num_neighbours, blind, num_outer_iterations, max_num_candidates, self.dcis[0]._block_size, self.dcis[0]._thread_size)
 
             for ind, cur_res in enumerate(res):
                 half = cur_res.shape[0] // 2

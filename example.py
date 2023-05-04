@@ -43,7 +43,7 @@ def main():
     num_queries = 500
     #num_pts = 1000 # 3000
     #num_queries = 100 #500
-    num_heads = 1
+    num_heads = 2
     # dim = 80
     # num_pts = 1000
     # num_queries = 100
