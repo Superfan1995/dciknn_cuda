@@ -187,7 +187,7 @@ class MDCI(object):
 
             for ind, cur_res in enumerate(res):
                 half = cur_res.shape[0] // 2
-                cur_nns, cur_dist = cur_res[:half].reshape(num_queries, -1), cur_res[half:].reshape(num_queries, -1)
+                cur_nns, cur_dist = cur_res[:half].reshape(_query.shape[0], -1), cur_res[half:].reshape(_query.shape[0], -1)
                 cur_nns = cur_nns + self.data_per_device * ind
                 dists.append(cur_dist.detach().clone().to(self.devices[0]))
                 nns.append(cur_nns.detach().clone().to(self.devices[0]))
