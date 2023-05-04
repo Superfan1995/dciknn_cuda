@@ -841,13 +841,19 @@ void get_top_blind_candidates(int* const nearest_neighbours,
 			sizeof(idx_elem) * total);
 	int block_size = 1024;
 	int thread_size = 32;
+
+	printf("init_candidates\n");
 	init_candidates<<<block_size, thread_size>>>(candidate_map, total, 0);
 	// synch all blocks
 	cudaDeviceSynchronize();
+
+	printf("get_blind_candidate_count\n");
 	get_blind_candidate_count<<<block_size, thread_size>>>(candidate_map, 
 		d_all_candidates, total, head, num_points);
 	// synch all blocks
 	cudaDeviceSynchronize();
+
+	print("mix_sort_kernel\n");
 	mix_sort_kernel<<<1, 1>>>(candidate_map, total);
 	for (i = 0; i < max_possible_num_candidates; i++) {
 		nearest_neighbours[i] = candidate_map[i].value;
@@ -865,6 +871,8 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 	int num_indices = dci_inst->num_comp_indices * dci_inst->num_simp_indices;
 	int max_possible_num_candidates = min(query_config.max_num_candidates,
 			query_config.num_outer_iterations);
+
+	pirntf("max_possible_num_candidates: %d", max_possible_num_candidates);
 
 	assert(num_heads == dci_inst->num_heads);
 	assert(dim == dci_inst->dim);
@@ -989,16 +997,9 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 						max_possible_num_candidates,
 						block_size * max_possible_num_candidates,
 						i, dci_inst->num_points);
+				printf("finish get_top_blind_candidates\n");
 			}
-
-			/*testing*/
-			//break;
-			/*testing*/
 		}
-
-		/*testing*/
-		//break;
-		/*testing*/
 	}
 
 	// free the allocated memories
