@@ -148,14 +148,6 @@ std::vector<torch::Tensor> py_dci_multi_head_query(std::vector<py::handle> py_dc
     std::vector<torch::Tensor> results;
     std::vector<std::future<torch::Tensor>> calcs;
 
-    //printf("Multi head query dci_cuda\n");
-    //printf("py_query size: %d\n", py_query.size());
-    //for (int i = 0; i < py_query.size(); i++) {
-    //    printf("head %d\n", i);
-    //   printf("device head: %d\n", head_per_device[i]);
-    //}
-    //printf("\n");
-
     for (unsigned int i = 0; i < py_query.size(); i++) {
         calcs.push_back(std::async(py_dci_query, py_dci_inst_wrapper[i], head_per_device[i], dim, num_queries,
             py_query[i], num_neighbours, blind, num_outer_iterations, max_num_candidates, block_size, thread_size));
