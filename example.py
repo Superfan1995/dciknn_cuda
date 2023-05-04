@@ -81,13 +81,12 @@ def main():
         dci_db.add(data)
         # Query
         indices, dists = dci_db.query(query, num_neighbours, num_outer_iterations)
-        #print("Nearest Indices:", indices)
-        #print("Indices Distances:", dists)
+        print("Nearest Indices:", indices)
+        print("Indices Distances:", dists)
         dci_db.clear()
         b = datetime.datetime.now()
         print(b-a)
 
-        '''
         data = data_and_queries[:(num_pts*num_heads), :].detach().clone().to(0)
         query = data_and_queries[(num_pts*num_heads):, :].detach().clone().to(0)
        
@@ -102,7 +101,6 @@ def main():
         dci_db.clear()
         b = datetime.datetime.now()
         print(b-a) 
-        '''
 
 if __name__ == '__main__':
     main()
