@@ -49,6 +49,7 @@ static inline float abs_d(float x) {
 }
 
 /* Normalize the input projection vectors. Vectors are normalized along each row. */
+// modified: total number of index increase as the number of head increase
 __global__ void normalize_proj_vecs(float* const proj_vec, const int num_heads, const int dim,
 		const int num_indices) {
 
@@ -124,6 +125,8 @@ void dci_init(dci* const dci_inst, const int num_heads, const int dim, const int
 }
 
 /* Sort indices */
+// modified: in multi head situation, the sorting should not move include index from the 
+// next head
 __global__ void sort_indices(dci* const dci_inst, const int num_heads, const int num_indices,
 		const int num_points, const int points_per_block) {
 	int chunk_size = (num_heads * num_indices + blockDim.x - 1) / blockDim.x;
@@ -136,6 +139,8 @@ __global__ void sort_indices(dci* const dci_inst, const int num_heads, const int
 		idx = threadIdx.x * chunk_size + j;
 		if (idx < num_indices * num_heads) {
 
+			// calculate the distance to the start index of next head, this index should not include
+			// in the sorting
 			int head = (int) (idx / num_indices);
 			int num_elems_to_next_head = 
 				(head + 1) * num_indices * (dci_inst->num_points) - idx * (dci_inst->num_points);
@@ -152,6 +157,9 @@ __global__ void sort_indices(dci* const dci_inst, const int num_heads, const int
 }
 
 /* Copy data in proj_vec to indices */
+// modified: create index for multi heads data, one of the cause of the major bugs
+// is due to the wrong index value, which only consider the relative index in a 
+// single head but not the position of the heads
 __global__ void copy_to_indices(dci* const dci_inst, float* const data_proj, 
 	const int num_heads, const int num_indices, const int num_points) {
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -162,7 +170,8 @@ __global__ void copy_to_indices(dci* const dci_inst, float* const data_proj,
 	for (int j = 0; j < chunk_size; j++) {
 		idx = i * chunk_size + j;
 		if (idx < n) {
-			// idx % num_points: the index of the data points (for a single head!)
+			// idx % num_points: the index of the data points for a single head
+			// head * num_points: the total number of data in the previous head
 			int head = (int) (idx / (num_indices * num_points));
 			dci_inst->indices[idx].key = data_proj[idx];
 			dci_inst->indices[idx].value = (idx % num_points) + (head * num_points);
@@ -171,6 +180,7 @@ __global__ void copy_to_indices(dci* const dci_inst, float* const data_proj,
 }
 
 /* Add data to the master DCI data structure.  */
+// modified: num_points - the number of points in a single heads, rather than total number of data points
 void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int num_points,
 		float* const data, const int block_size, const int thread_size) {
 	int num_indices = dci_inst->num_comp_indices * dci_inst->num_simp_indices;
@@ -216,6 +226,7 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 	// conclude: 	we still need to calculate each attention head seperately, matmul together will result
 	// 				calculate useless result
 	
+	// modified: process the matmull for each head independently
 	for (int i = 0; i < num_heads; i++) {
 		int proj_vec_id = i * dim * num_indices;
 		int data_id = i * num_points * dim;
@@ -363,6 +374,7 @@ static inline int dci_search_index(const idx_elem* const idx, const float key,
 }
 
 /* Search indices */
+// modified: consider the current head position
 __device__ void search_index(const dci* const dci_inst,
 		const float* const query_proj, const int head, const int num_indices, 
 		int* const left_pos, int* const right_pos, const int points_per_block) {
@@ -375,7 +387,7 @@ __device__ void search_index(const dci* const dci_inst,
 			left_pos[idx] = dci_search_index(
 					&(dci_inst->indices[idx * (dci_inst->num_points)
 							+ blockIdx.x * points_per_block
-							+ head * num_indices * (dci_inst->num_points)]),
+							+ head * num_indices * (dci_inst->num_points)]), // current head position
 					query_proj[idx],
 					min(dci_inst->num_points - blockIdx.x * points_per_block,
 							points_per_block)) - blockDim.x + 1;
@@ -384,6 +396,7 @@ __device__ void search_index(const dci* const dci_inst,
 	}
 }
 
+// modified: consider the current head position
 __device__ void init_index_priority(const dci* const dci_inst,
 		const float* const query_proj, const int head, 
 		const int num_indices, int* const left_pos, int* const right_pos, 
@@ -401,7 +414,7 @@ __device__ void init_index_priority(const dci* const dci_inst,
 			cur_pos[idx] = dci_next_closest_proj(
 					&(dci_inst->indices[idx * (dci_inst->num_points)
 							+ blockIdx.x * points_per_block
-							+ head * num_indices * (dci_inst->num_points)]),
+							+ head * num_indices * (dci_inst->num_points)]), // current head position
 					&(left_pos[idx]), &(right_pos[idx]), 
 					query_proj[idx],
 					num_points_in_block);
@@ -420,7 +433,7 @@ __device__ void init_index_priority(const dci* const dci_inst,
 					dci_inst->indices[position + 
 							idx * (dci_inst->num_points)
 							+ blockIdx.x * points_per_block
-							+ head * num_indices * (dci_inst->num_points)].key
+							+ head * num_indices * (dci_inst->num_points)].key // current head position
 							- query_proj[idx]);
 		}
 	}
@@ -469,6 +482,7 @@ __global__ void init_candidate_indices(const dci* const dci_inst,
 
 // Blind querying does not compute distances or look at the values of indexed vectors
 // For blind querying, top_candidates is not used; all_candidates is used to store candidates in the order of retrieval
+// modified: consider the current head position, major bug occured due the cur_point calculation error
 __global__
 static void dci_query_single_point_by_block(const dci* const dci_inst,
 		const int num_neighbours, const int head, const float* const query, const float* 
@@ -811,6 +825,7 @@ __global__ void init_candidates(idx_elem* const candidate_map, const int total,
 	}
 }
 
+// modified: consider the current head position
 __global__ void get_blind_candidate_count(idx_elem* const candidate_map,
 		int* const d_all_candidates, const int total, const int head,
 		const int num_points) {
@@ -842,12 +857,10 @@ void get_top_blind_candidates(int* const nearest_neighbours,
 	int block_size = 1024;
 	int thread_size = 32;
 
-	//printf("init_candidates\n");
 	init_candidates<<<block_size, thread_size>>>(candidate_map, total, 0);
 	// synch all blocks
 	cudaDeviceSynchronize();
 
-	//printf("get_blind_candidate_count\n");
 	get_blind_candidate_count<<<block_size, thread_size>>>(candidate_map, 
 		d_all_candidates, total, head, num_points);
 	// synch all blocks
@@ -862,6 +875,7 @@ void get_top_blind_candidates(int* const nearest_neighbours,
 
 // If blind querying is used, nearest_neighbours must be of size num_queries * max_possible_num_candidates; otherwise, it must be of size num_queries * num_neighbours
 // nearest_neighbour_dists can be NULL when blind querying is used
+// modified: num_query is the number of query in a single head, not total number of query
 void dci_query(dci* const dci_inst, const int num_heads, const int dim, 
 		const int num_queries, const float* const query, const int num_neighbours,
 		const dci_query_config query_config, int* const nearest_neighbours,
@@ -890,8 +904,8 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 	cudaMallocManaged((void **) (&query_proj),
 			sizeof(float) * num_heads * num_indices * num_queries);
 
-	//printf("Before matmul_device\n");
-
+	// calculate the query_proj for each head, as query for each head only need to 
+	// calculate with the data in the heads
 	for (int i = 0; i < num_heads; i++) {
 		int query_id = i * dci_inst->dim * num_queries;
 		int proj_vec_id = i * dci_inst->dim * num_indices;
@@ -909,8 +923,6 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 			devId
 		);
 	}
-
-	//printf("allocation matmul_device\n");
 
 	//matmul_device(CUBLAS_OP_N, CUBLAS_OP_T, num_queries, num_indices,
 	//		dci_inst->dim, query, dci_inst->proj_vec, query_proj, devId);
@@ -943,9 +955,10 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 	cudaMallocManaged((void **) (&candidate_dists),
 			sizeof(float) * dci_inst->num_points);
 
-	//printf("loop\n");
-
-	// iterating by head * query
+	// modified
+	// iterating by (total_number_of_query = current_head * current_query)
+	// loop with head because it doesn't make sense to apply query of one head on other head
+	// and process query 1 of each head simultaneous need complete change of current structure
 	for (int i = 0; i < num_heads; i++) {
 
 		for (int j = 0; j < num_queries; j++) {
@@ -960,8 +973,7 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 
 			cudaDeviceSynchronize();
 
-			//printf("loop head %d, query %d\n", i, j);
-
+			// find query result given the current head
 			dci_query_single_point_by_block<<<block_size, thread_size>>>(
 					dci_inst,
 					num_neighbours,
@@ -977,11 +989,8 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 				);
 			cudaDeviceSynchronize();
 
-			//printf("loop head %d, query %d, output\n", i, j);
-
 			// get the final output
 			if (!query_config.blind) {
-				//printf("get_top_candidates\n");
 				get_top_candidates(
 						&(nearest_neighbours[j * num_neighbours + i * num_queries * num_neighbours]),
 						&(nearest_neighbour_dists[j * num_neighbours + i * num_queries * num_neighbours]),
@@ -990,7 +999,6 @@ void dci_query(dci* const dci_inst, const int num_heads, const int dim,
 						num_neighbours, 
 						block_size * num_neighbours * thread_size);
 			} else {
-				//printf("get_top_blind_candidates\n");
 				get_top_blind_candidates(
 						&(nearest_neighbours[j * max_possible_num_candidates + i * num_queries + num_neighbours]),
 						d_all_candidates, 

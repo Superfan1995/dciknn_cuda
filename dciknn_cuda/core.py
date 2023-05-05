@@ -75,6 +75,8 @@ class DCI(object):
         if self.num_points > 0:
             raise RuntimeError("DCI class does not support insertion of more than one tensor. Must combine all tensors into one tensor before inserting")
         self._check_data(data)
+
+        # total number of points = num_points * num_heads
         self.num_points = (int) (data.shape[0] / self._num_heads)
         _dci_add(self._dci_inst, self._num_heads, self._dim, self.num_points, data.flatten(), self._block_size, self._thread_size)
         self._array = data
@@ -92,6 +94,7 @@ class DCI(object):
         max_num_candidates = 10 * num_neighbours
         # num_queries x num_neighbours
 
+        # total number of query = num_queries * num_heads
         num_queries = (int) (_query.shape[0] / self._num_heads)
         _query_result = _dci_query(self._dci_inst, self._num_heads, self._dim, num_queries, _query.flatten(), num_neighbours, blind, num_outer_iterations, max_num_candidates, self._block_size, self._thread_size)
 
@@ -129,15 +132,16 @@ class MDCI(object):
 
         self.devices = devices
         self.num_devices = len(devices)
-        self.dcis = []
+        self.dcis = [] # cannot create DCIs based on current data, need data to calculate the number of heads assign to each dci
         self.data_per_device = 0 # the number of data points assign to each device (note: for single head situation)
         self.head_per_device = 0 # the number of head assign to each device
         self.head_per_device_list = []
         self.num_points = 0
 
-    # need consider the number of points
     def add(self, data):
 
+        # origin: when with one head, each device are given a segment of the data and calculate the query
+        # result for these data.
         if (self._num_heads == 1):
             self.dcis = [DCI(self._num_heads, self._dim, self._num_comp_indices, self._num_simp_indices, self._block_size, self._thread_size, dev) for dev in self.devices]
             
@@ -148,13 +152,15 @@ class MDCI(object):
                 cur_data = data[dev_ind * self.data_per_device: dev_ind * self.data_per_device + self.data_per_device].to(device)
                 self.dcis[dev_ind].add(cur_data)
 
+        # modified: when with multiple head, each devices are given data of given number of head and
+        # calculate the correspond query result for these heads
         else:
+            # number of head assign to current device
             self.head_per_device = self._num_heads // self.num_devices
             # number of data points in a single head
             self.num_points = data.shape[0] // self._num_heads
 
             for dev_ind in range(self.num_devices):
-                # number of head assign to current device
                 num_heads_device = min(self.head_per_device, self._num_heads - dev_ind * self.head_per_device)
                 num_points_device = num_heads_device * self.num_points
                 self.head_per_device_list.append(num_heads_device)
@@ -162,6 +168,7 @@ class MDCI(object):
                 device = self.devices[dev_ind]
                 cur_data = data[dev_ind * self.head_per_device * self.num_points: dev_ind * self.head_per_device * self.num_points + num_points_device].to(device)
 
+                # each device's DCI will only process the heads assign to it
                 new_dci = DCI(num_heads_device, self._dim, self._num_comp_indices, self._num_simp_indices, self._block_size, self._thread_size, device)
                 (self.dcis).append(new_dci)
                 self.dcis[dev_ind].add(cur_data)
@@ -180,6 +187,8 @@ class MDCI(object):
 
         max_num_candidates = 10 * num_neighbours
 
+        # origin: when with one head, each device are given a segment of the data and calculate the query
+        # result for these data.
         if (self._num_heads == 1):
             queries = [_query.to(self.devices[dev_ind]).flatten() for dev_ind in self.devices]
 
@@ -192,6 +201,8 @@ class MDCI(object):
                 dists.append(cur_dist.detach().clone().to(self.devices[0]))
                 nns.append(cur_nns.detach().clone().to(self.devices[0]))
 
+        # modified: when with multiple head, each devices are given data of given number of head and
+        # calculate the correspond query result for these heads
         else:
             num_queries = _query.shape[0] // self._num_heads
             queries = []
@@ -205,7 +216,7 @@ class MDCI(object):
                 half = cur_res.shape[0] // 2
                 cur_num_queries = self.head_per_device_list[ind] * num_queries
                 cur_nns, cur_dist = cur_res[:half].reshape(cur_num_queries, -1), cur_res[half:].reshape(cur_num_queries, -1)
-                cur_nns = cur_nns + self.head_per_device * self.num_points * ind
+                cur_nns = cur_nns + self.head_per_device * self.num_points * ind # the size of output is depend on the number of head process by the device
                 dists.append(cur_dist.detach().clone().to(self.devices[0]))
                 nns.append(cur_nns.detach().clone().to(self.devices[0]))
 

@@ -70,6 +70,7 @@ def main():
     # initialize the DCI instance
     for i in range(2):
 
+        # test MDCI function, with 2 GPU
         data = data_and_queries[:(num_pts*num_heads), :].detach().clone().to(device)
         query = data_and_queries[(num_pts*num_heads):, :].detach().clone().to(device)
 
@@ -77,7 +78,6 @@ def main():
         dci_db = MDCI(num_heads, dim, num_comp_indices, num_simp_indices, block_size, thread_size, devices=[0, 1])
 
         dci_db.add(data)
-        # Query
         indices, dists = dci_db.query(query, num_neighbours, num_outer_iterations)
         print("Nearest Indices:", indices)
         print("Indices Distances:", dists)
@@ -85,6 +85,7 @@ def main():
         b = datetime.datetime.now()
         print(b-a)
 
+        # test DCI function, with 1 GPU
         data = data_and_queries[:(num_pts*num_heads), :].detach().clone().to(0)
         query = data_and_queries[(num_pts*num_heads):, :].detach().clone().to(0)
        
@@ -92,7 +93,6 @@ def main():
         dci_db = DCI(num_heads, dim, num_comp_indices, num_simp_indices, block_size, thread_size, device=0)
 
         dci_db.add(data)
-        # Query
         indices, dists = dci_db.query(query, num_neighbours, num_outer_iterations)
         print("Nearest Indices:", indices)
         print("Indices Distances:", dists)
