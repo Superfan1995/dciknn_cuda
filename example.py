@@ -32,7 +32,7 @@ def gen_data(ambient_dim, intrinsic_dim, num_points, num_heads):
 
 def main():
     assert torch.cuda.is_available()
-    device = torch.device('cuda:1')
+    #device = torch.device('cuda:1')
 
     #############################################################################################################################################
     #                                                                                                                                           #
@@ -72,19 +72,19 @@ def main():
     for i in range(2):
 
         # test MDCI function, with 2 GPU
-        data = data_and_queries[:(num_pts*num_heads), :].detach().clone().to(device)
-        query = data_and_queries[(num_pts*num_heads):, :].detach().clone().to(device)
+        #data = data_and_queries[:(num_pts*num_heads), :].detach().clone().to(device)
+        #query = data_and_queries[(num_pts*num_heads):, :].detach().clone().to(device)
 
-        a = datetime.datetime.now()
-        dci_db = MDCI(num_heads, dim, num_comp_indices, num_simp_indices, block_size, thread_size, devices=[0, 1])
+        #a = datetime.datetime.now()
+        #dci_db = MDCI(num_heads, dim, num_comp_indices, num_simp_indices, block_size, thread_size, devices=[0, 1])
 
-        dci_db.add(data)
-        indices, dists = dci_db.query(query, num_neighbours, num_outer_iterations)
-        print("Nearest Indices:", indices)
-        print("Indices Distances:", dists)
-        dci_db.clear()
-        b = datetime.datetime.now()
-        print(b-a)
+        #dci_db.add(data)
+        #indices, dists = dci_db.query(query, num_neighbours, num_outer_iterations)
+        #print("Nearest Indices:", indices)
+        #print("Indices Distances:", dists)
+        #dci_db.clear()
+        #b = datetime.datetime.now()
+        #print(b-a)
 
         # test DCI function, with 1 GPU
         data = data_and_queries[:(num_pts*num_heads), :].detach().clone().to(0)
