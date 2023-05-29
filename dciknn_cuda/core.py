@@ -21,9 +21,21 @@ from _dci_cuda import _dci_new, _dci_add, _dci_query, _dci_clear, _dci_reset, _d
 
 from math import sqrt
 
-
+'''
+    knn approximation for single device
+'''
 class DCI(object):
     
+    '''
+        initialize parameter and create the DCI instance (single device)
+        num_heads:          number of attention head
+        dim:                dimension of the data point
+        num_comp_indices:   number of complex index
+        num_simp_indices:   number of simple index
+        bs:                 block size
+        ts:                 thread size
+        device:             device (GPU)
+    '''
     def __init__(self, num_heads, dim, num_comp_indices=2, num_simp_indices=7, bs=100, ts=10, device=0):
         
         if not torch.cuda.is_available():
@@ -33,7 +45,7 @@ class DCI(object):
         self._num_heads = num_heads
         self._num_comp_indices = num_comp_indices
         self._num_simp_indices = num_simp_indices
-        self._dci_inst = _dci_new(num_heads, dim, num_comp_indices, num_simp_indices, device)
+        self._dci_inst = _dci_new(num_heads, dim, num_comp_indices, num_simp_indices, device) # create new dci
         self._array = None
         self._block_size = bs
         self._thread_size = ts
