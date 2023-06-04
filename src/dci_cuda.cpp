@@ -51,9 +51,7 @@ static void py_tensor_free(PyObject *py_tensor_wrapper) {
     cudaFree(py_tensor);
 }
 
-'''
-    Create new dci instance
-'''
+// Create new dci instance
 py::handle py_dci_new(const int num_heads, const int dim, const int num_comp_indices,
     const int num_simp_indices, const int deviceId) {
     const at::cuda::OptionalCUDAGuard device_guard(deviceId);
