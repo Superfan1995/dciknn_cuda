@@ -53,8 +53,8 @@ setup(
         ], include_dirs=[
             os.path.abspath(os.path.join(os.path.dirname(__file__), 'include')),
         ], extra_compile_args={
-                'cxx': ['-g', '-G'],
-                'gcc': ['-g', '-G'],
+                'cxx': ['-g'],
+                'gcc': ['-g'],
                 'nvcc': ['-g', '-G']
             }
         )
