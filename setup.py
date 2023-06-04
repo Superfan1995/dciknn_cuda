@@ -39,6 +39,8 @@ setup(
     license='Mozilla Public License Version 2.0',
     install_requires=['torch>=1.4.0'],
     include_dirs=include_paths(),
+    #extra_compile_args = ["-g", "-G"], 
+    #extra_compile_args["nvcc"] = ["-g", "-G"],
     #language='c++',
     #sources=['./src/dci_cuda.cpp',
     #        './src/dci_cuda_kernel.cu',
@@ -50,7 +52,7 @@ setup(
             './src/util_kernel.cu',
         ], include_dirs=[
             os.path.abspath(os.path.join(os.path.dirname(__file__), 'include')),
-        ]
+        ], extra_compile_args=["-g", "-G"]
         )
     ],
     cmdclass={
