@@ -75,8 +75,12 @@ void py_dci_add(py::handle py_dci_inst_wrapper, const int num_heads, const int d
     py_dci *py_dci_inst = (py_dci *)PyCapsule_GetPointer(py_obj, "py_dci_inst");
     float* data = (float *)py_data.data_ptr();
 
+    printf("dci_add reach\n");
+
     // add data to DCI instance
     dci_add(&(py_dci_inst->dci_inst), num_heads, dim, num_points, data, block_size, thread_size);
+
+    printf("dci_add end\n");
 
     PyObject *py_tensor_wrapper = PyCapsule_New(&py_data, "py_tensor", py_tensor_free);
     py_dci_inst->py_array = py_tensor_wrapper;
