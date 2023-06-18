@@ -99,7 +99,7 @@ def main():
         #print("Indices Distances:", dists)
         dci_db.clear()
         b = datetime.datetime.now()
-        print(b-a) 
+        #print(b-a) 
 
 if __name__ == '__main__':
     main()

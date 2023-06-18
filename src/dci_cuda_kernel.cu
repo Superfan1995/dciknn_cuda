@@ -107,8 +107,8 @@ void dci_gen_proj_vec(float* const proj_vec, const int num_heads, const int dim,
 void dci_init(dci* const dci_inst, const int num_heads, const int dim, const int num_comp_indices,
 		const int num_simp_indices, const int devId) {
 
-	//printf("dci_init success inside\n");
-	printf("Hello world!\n");
+	printf("dci_init success inside\n");
+	//printf("Hello world!\n");
 
 	int num_indices = num_comp_indices * num_simp_indices;
 

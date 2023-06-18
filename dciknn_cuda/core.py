@@ -88,7 +88,7 @@ class DCI(object):
             raise RuntimeError("DCI class does not support insertion of more than one tensor. Must combine all tensors into one tensor before inserting")
         self._check_data(data)
 
-        print("add function in core.py")
+        #print("add function in core.py")
 
         # total number of points = num_points * num_heads
         self.num_points = (int) (data.shape[0] / self._num_heads)
