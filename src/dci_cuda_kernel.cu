@@ -89,6 +89,7 @@ __global__ void normalize_proj_vecs(float* const proj_vec, const int num_heads, 
  vectors are normalized along each row */
 void dci_gen_proj_vec(float* const proj_vec, const int num_heads, const int dim,
 		const int num_indices) {
+
 	/* Generate the random indices */
 	rng_parallel_device(proj_vec, num_heads * dim * num_indices, GAUSS_RAND);
 
@@ -105,6 +106,9 @@ void dci_gen_proj_vec(float* const proj_vec, const int num_heads, const int dim,
 /* Initializes the master DCI data structure.  */
 void dci_init(dci* const dci_inst, const int num_heads, const int dim, const int num_comp_indices,
 		const int num_simp_indices, const int devId) {
+
+	printf("dci_init inside\n");
+
 	int num_indices = num_comp_indices * num_simp_indices;
 
 	dci_inst->num_heads = num_heads;
