@@ -23,6 +23,7 @@
 #include <float.h>
 #include "dci.h"
 #include "util.h"
+#include <stdio.h>
 
 /* Sorting functions */
 #include <thrust/sort.h>
@@ -108,7 +109,6 @@ void dci_init(dci* const dci_inst, const int num_heads, const int dim, const int
 		const int num_simp_indices, const int devId) {
 
 	printf("dci_init success inside\n");
-	cudaThreadSynchronize();
 	//printf("Hello world!\n");
 
 	int num_indices = num_comp_indices * num_simp_indices;
