@@ -109,7 +109,6 @@ void dci_init(dci* const dci_inst, const int num_heads, const int dim, const int
 		const int num_simp_indices, const int devId) {
 
 	printf("dci_init success inside\n");
-	fflush(stdout);
 	//cudaDeviceSynchronize();
 
 	int num_indices = num_comp_indices * num_simp_indices;
@@ -192,8 +191,8 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 		float* const data, const int block_size, const int thread_size) {
 
 	printf("dci_add inside\n");
-	fflush(stdout);
-	//cudaDeviceSynchronize();
+	int h = 0;
+	printf("head: %d\n", h);
 
 	int num_indices = dci_inst->num_comp_indices * dci_inst->num_simp_indices;
 	float *data_proj;
