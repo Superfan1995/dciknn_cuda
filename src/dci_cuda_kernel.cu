@@ -108,7 +108,7 @@ void dci_gen_proj_vec(float* const proj_vec, const int num_heads, const int dim,
 void dci_init(dci* const dci_inst, const int num_heads, const int dim, const int num_comp_indices,
 		const int num_simp_indices, const int devId) {
 
-	printf("dci_init success inside\n");
+	//printf("dci_init success inside\n");
 	//cudaDeviceSynchronize();
 
 	int num_indices = num_comp_indices * num_simp_indices;
@@ -190,9 +190,9 @@ __global__ void copy_to_indices(dci* const dci_inst, float* const data_proj,
 void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int num_points,
 		float* const data, const int block_size, const int thread_size) {
 
-	printf("dci_add inside\n");
-	int h = 0;
-	printf("head: %d\n", h);
+	//printf("dci_add inside\n");
+	//int h = 0;
+	//printf("head: %d\n", h);
 
 	int num_indices = dci_inst->num_comp_indices * dci_inst->num_simp_indices;
 	float *data_proj;
@@ -256,6 +256,25 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 		);
 	}
 	cudaDeviceSynchronize();
+
+	/*print result - testing*/
+	int data_size = sizeof(float) * num_heads * num_points * num_indices;
+	float *h_data = (float *) malloc(data_size);
+	cudaMemcpy(h_data, data_proj, data_size, cudaMemcpyDeviceToHost);
+
+	int h = 0;
+	printf("head: %d\n", h);
+	for (int i = 0; i < num_indices; i++) {
+		printf("index: %d\n", i);
+		for (int j = 0; j < num_points; j++) {
+			//printf("%f ", h_data[j + i * num_points + h * num_points * num_indices]);
+			printf("%f ", h_data[j + i * num_points]);
+		}
+		printf("\n");
+	}
+	printf("\n");
+	cudaFree(h_data);
+	/*testing*/
 
 	/* Add to indices */
 	copy_to_indices	<<<block_size, thread_size>>>(dci_inst, data_proj, num_heads, num_indices, num_points);
