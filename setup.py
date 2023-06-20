@@ -55,7 +55,7 @@ setup(
         ], extra_compile_args={
                 'cxx': ['-g'],
                 'gcc': ['-g'],
-                'nvcc': ['-g', '-G']
+                'nvcc': ['-g', '-G', '-arch sm_20']
             }
         )
     ],
