@@ -53,12 +53,12 @@ setup(
         ], include_dirs=[
             os.path.abspath(os.path.join(os.path.dirname(__file__), 'include')),
         ]
-        , extra_compile_args={
-                'cxx': ['-g'],
-                'gcc': ['-g'],
+        #, extra_compile_args={
+        #        'cxx': ['-g'],
+        #        'gcc': ['-g'],
                 #'nvcc': ['-g', '-G']
-                'nvcc': ['-g', '-G', '-arch=sm_30']
-            }
+        #        'nvcc': ['-g', '-G', '-arch=sm_30']
+        #    }
         )
     ],
     cmdclass={
