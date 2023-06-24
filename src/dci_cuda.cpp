@@ -23,7 +23,7 @@
 #include <thread>
 #include <future>
 #include <vector>
-
+#include <stdio.h>
 
 typedef struct py_dci {
     dci dci_inst;
@@ -77,6 +77,7 @@ void py_dci_add(py::handle py_dci_inst_wrapper, const int num_heads, const int d
 
     //cout << "This code in py_dci_add";
     printf("This code in py_dci_add");
+    fflush(stdout);
 
     // add data to DCI instance
     dci_add(&(py_dci_inst->dci_inst), num_heads, dim, num_points, data, block_size, thread_size);
