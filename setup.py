@@ -57,7 +57,7 @@ setup(
                 'cxx': ['-g'],
                 'gcc': ['-g'],
                 #'nvcc': ['-g', '-G']
-                'nvcc': ['-g', '-G', '-arch=sm_#0']
+                'nvcc': ['-g', '-G', '-arch=sm_30']
             }
         )
     ],
