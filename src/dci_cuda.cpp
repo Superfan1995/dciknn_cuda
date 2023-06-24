@@ -76,7 +76,7 @@ void py_dci_add(py::handle py_dci_inst_wrapper, const int num_heads, const int d
     float* data = (float *)py_data.data_ptr();
 
     //cout << "This code in py_dci_add";
-    printf("This code in py_dci_add");
+    printf("This code in py_dci_add\n");
     fflush(stdout);
 
     // add data to DCI instance
