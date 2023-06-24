@@ -23,7 +23,6 @@
 #include <thread>
 #include <future>
 #include <vector>
-#include <stdio.h>
 
 
 typedef struct py_dci {

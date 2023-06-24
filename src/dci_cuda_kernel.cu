@@ -23,7 +23,6 @@
 #include <float.h>
 #include "dci.h"
 #include "util.h"
-#include <stdio.h>
 
 /* Sorting functions */
 #include <thrust/sort.h>
@@ -190,8 +189,7 @@ __global__ void copy_to_indices(dci* const dci_inst, float* const data_proj,
 void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int num_points,
 		float* const data, const int block_size, const int thread_size) {
 
-	printf("dci_add insid\n");
-	fflush(stdout);
+	//printf("dci_add insid\n");
 
 	int num_indices = dci_inst->num_comp_indices * dci_inst->num_simp_indices;
 	float *data_proj;
@@ -257,22 +255,24 @@ void dci_add(dci* const dci_inst, const int num_heads, const int dim, const int 
 	cudaDeviceSynchronize();
 
 	/*print result - testing*/
-	int data_size = sizeof(float) * num_heads * num_points * num_indices;
-	float *h_data = (float *) malloc(data_size);
-	cudaMemcpy(h_data, data_proj, data_size, cudaMemcpyDeviceToHost);
+	int data_size = sizeof(idx_elem) * num_heads * num_points * num_indices;
+	idx_elem* h_data = (idx_elem *) malloc(data_size);
+	cudaMemcpy(h_data, dci_inst->indices, data_size, cudaMemcpyDeviceToHost);
 
-	int h = 0;
-	printf("head: %d\n", h);
-	for (int i = 0; i < num_indices; i++) {
-		printf("index: %d\n", i);
-		for (int j = 0; j < num_points; j++) {
-			//printf("%f ", h_data[j + i * num_points + h * num_points * num_indices]);
-			printf("%f ", h_data[j + i * num_points]);
+	for (int h = 0; h < num_heads; h++) {
+		printf("head: %d\n", h);
+		for (int i = 0; i < num_indices; i++) {
+			printf("index: %d\n", i);
+			for (int j = 0; j < num_points; j++) {
+				printf("%f ", h_data[j + i * num_points + h * num_points * num_indices].value);
+			}
+			printf("\n");
 		}
-		printf("\n");
+		printf("head: %d\n", h);
 	}
-	printf("\n");
+
 	cudaFree(h_data);
+	printf("\n");
 	/*testing*/
 
 	/* Add to indices */
