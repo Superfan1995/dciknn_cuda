@@ -77,10 +77,9 @@ void py_dci_add(py::handle py_dci_inst_wrapper, const int num_heads, const int d
 
     //cout << "This code in py_dci_add";
     printf("This code in py_dci_add\n");
-    fflush(stdout);
 
     // add data to DCI instance
-    dci_add(&(py_dci_inst->dci_inst), num_heads, dim, num_points, data, block_size, thread_size);
+    //dci_add(&(py_dci_inst->dci_inst), num_heads, dim, num_points, data, block_size, thread_size);
 
     PyObject *py_tensor_wrapper = PyCapsule_New(&py_data, "py_tensor", py_tensor_free);
     py_dci_inst->py_array = py_tensor_wrapper;
