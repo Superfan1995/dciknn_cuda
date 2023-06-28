@@ -58,6 +58,8 @@ py::handle py_dci_new(const int num_heads, const int dim, const int num_comp_ind
     py_dci *py_dci_inst;
     cudaMallocManaged((void **) &py_dci_inst, sizeof(py_dci));
 
+    printf("This code in py_dci_new\n");
+
     // initialize DCI instance
     dci_init(&(py_dci_inst->dci_inst), num_heads, dim, num_comp_indices, num_simp_indices, deviceId);
 

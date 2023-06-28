@@ -19,9 +19,10 @@ import torch
 import random
 import datetime
 
-#random.seed(10)
-random_seed = 1
-torch.manual_seed(random_seed)
+#random_seed = 1
+#torch.manual_seed(random_seed)
+random.seed(10)
+torch.manual_seed(0)
 
 def gen_data(ambient_dim, intrinsic_dim, num_points, num_heads):
     latent_data = torch.randn((num_points * num_heads, intrinsic_dim))
@@ -39,16 +40,19 @@ def main():
     # Data Generation Hyperparameters                                                                                                           #
     #                                                                                                                                           #
     #############################################################################################################################################
-    #dim = 100
-    #num_pts = 3000
-    #num_queries = 500
     num_heads = 2
-    dim = 50
-    num_pts = 1000
-    num_queries = 100
+    dim = 100
+    num_pts = 3000
+    num_queries = 500
+    # dim = 80
+    # num_pts = 1000
+    # num_queries = 100
 
-    intrinsic_dim = 100
+    intrinsic_dim = 400
     data_and_queries = gen_data(dim, intrinsic_dim, num_pts + num_queries, num_heads)
+
+    data = data_and_queries[:num_pts, :].detach().clone().to(device)
+    query = data_and_queries[num_pts:, :].detach().clone().to(device)
     
     #############################################################################################################################################
     #                                                                                                                                           #
@@ -93,7 +97,7 @@ def main():
         #a = datetime.datetime.now()
         dci_db = DCI(num_heads, dim, num_comp_indices, num_simp_indices, block_size, thread_size, device=0)
 
-        dci_db.add(data)
+        #dci_db.add(data)
         #indices, dists = dci_db.query(query, num_neighbours, num_outer_iterations)
         #print("Nearest Indices:", indices)
         #print("Indices Distances:", dists)
