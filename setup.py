@@ -40,7 +40,7 @@ setup(
     install_requires=['torch>=1.4.0'],
     include_dirs=include_paths(),
     language='c++',
-    sources=['./src/dci_cuda.cpp',
+    soruces=['./src/dci_cuda.cpp',
             './src/dci_cuda_kernel.cu',
             './src/util_kernel.cu',],
     ext_modules=[
@@ -51,14 +51,16 @@ setup(
         ], include_dirs=[
             os.path.abspath(os.path.join(os.path.dirname(__file__), 'include')),
         ]
+        )
+    ],
+    cmdclass={
+        'build_ext': BuildExtension
+    })
+
         #, extra_compile_args={
         #        'cxx': ['-g'],
         #        'gcc': ['-g', '-o'],
         #        #'nvcc': ['-g', '-G']
         #        'nvcc': ['-g', '-G', '-arch=sm_20']
         #    }
-        )
-    ],
-    cmdclass={
-        'build_ext': BuildExtension
-    })
+        #)

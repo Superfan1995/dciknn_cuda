@@ -130,6 +130,7 @@ class DCI(object):
         self.num_points = 0
         self._array = None
 
+'''
 # noting
 # currently not working properly
 class MDCI(object):
@@ -251,3 +252,4 @@ class MDCI(object):
     def free(self):
         for dci in self.dcis:
             dci.free()
+'''
