@@ -61,7 +61,7 @@ py::handle py_dci_new(const int num_heads, const int dim, const int num_comp_ind
     printf("This code in py_dci_new\n");
 
     // initialize DCI instance
-    //dci_init(&(py_dci_inst->dci_inst), num_heads, dim, num_comp_indices, num_simp_indices, deviceId);
+    dci_init(&(py_dci_inst->dci_inst), num_heads, dim, num_comp_indices, num_simp_indices, deviceId);
 
     // Returns new reference
     PyObject *py_dci_inst_wrapper = PyCapsule_New(py_dci_inst, "py_dci_inst", py_dci_free_wrap);

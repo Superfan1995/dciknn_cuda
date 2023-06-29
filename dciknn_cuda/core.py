@@ -41,6 +41,8 @@ class DCI(object):
         if not torch.cuda.is_available():
             raise RuntimeError("DCI CUDA version requires GPU access, please check CUDA driver.")
 
+        print("Create new dci.\n")
+
         self._dim = dim
         self._num_heads = num_heads
         self._num_comp_indices = num_comp_indices
@@ -88,7 +90,7 @@ class DCI(object):
             raise RuntimeError("DCI class does not support insertion of more than one tensor. Must combine all tensors into one tensor before inserting")
         self._check_data(data)
 
-        print("add function in core.py")
+        print("add function in core.py.\n")
 
         # total number of points = num_points * num_heads
         self.num_points = (int) (data.shape[0] / self._num_heads)
