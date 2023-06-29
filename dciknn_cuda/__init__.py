@@ -19,4 +19,5 @@ __version__ = "0.1.11"
 __author__ = 'Ke Li, Shichong Peng, Mehran Aghabozorgi'
 __credits__ = 'APEX Lab'
 
-from .core import DCI, MDCI
+#from .core import DCI, MDCI
+from .core import DCI
