@@ -126,7 +126,7 @@ torch::Tensor py_dci_query(py::handle py_dci_inst_wrapper, const int num_heads, 
     return final_result;
 }
 
-'''
+/*
 std::vector<torch::Tensor> py_dci_multi_query(std::vector<py::handle> py_dci_inst_wrapper, const int num_heads, 
     const int dim, const int num_queries, std::vector<torch::Tensor> py_query, const int num_neighbours, 
     const bool blind, const int num_outer_iterations, const int max_num_candidates, const int block_size,
@@ -160,7 +160,7 @@ std::vector<torch::Tensor> py_dci_multi_head_query(std::vector<py::handle> py_dc
     }
     return results;
 }
-'''
+*/
 
 void py_dci_clear(py::handle py_dci_inst_wrapper) {
     PyObject *py_obj = py_dci_inst_wrapper.ptr();
