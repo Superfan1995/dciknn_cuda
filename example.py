@@ -14,7 +14,8 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 Copyright (C) 2020    Ke Li, Shichong Peng, Mehran Aghabozorgi
 '''
-from dciknn_cuda import DCI, MDCI
+#from dciknn_cuda import DCI, MDCI
+from dciknn_cuda import DCI
 import torch
 import random
 import datetime
