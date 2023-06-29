@@ -16,8 +16,8 @@ Copyright (C) 2020    Ke Li, Shichong Peng, Mehran Aghabozorgi
 '''
 
 import torch
-from _dci_cuda import _dci_new, _dci_add, _dci_query, _dci_clear, _dci_reset, _dci_free, _dci_multi_query, _dci_multi_head_query
-# from _dci_cuda import _dci_new, _dci_add, _dci_query, _dci_clear, _dci_reset, _dci_free
+#from _dci_cuda import _dci_new, _dci_add, _dci_query, _dci_clear, _dci_reset, _dci_free, _dci_multi_query, _dci_multi_head_query
+from _dci_cuda import _dci_new, _dci_add, _dci_query, _dci_clear, _dci_reset, _dci_free
 
 from math import sqrt
 

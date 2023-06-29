@@ -208,6 +208,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("_dci_clear", &py_dci_clear, "Clear DCI. (CUDA)");
     m.def("_dci_reset", &py_dci_reset, "Reset DCI. (CUDA)");
     m.def("_dci_free", &py_dci_free, "Free DCI. (CUDA)");
-    m.def("_dci_multi_query", &py_dci_multi_query, "Search for nearest neighbours with multiple GPUs. (CUDA)");
-    m.def("_dci_multi_head_query", &py_dci_multi_head_query, "Search for multi-attention head nearest neighbours with multiple GPUs. (CUDA)");
+    //m.def("_dci_multi_query", &py_dci_multi_query, "Search for nearest neighbours with multiple GPUs. (CUDA)");
+    //m.def("_dci_multi_head_query", &py_dci_multi_head_query, "Search for multi-attention head nearest neighbours with multiple GPUs. (CUDA)");
 }
